@@ -76,14 +76,14 @@ class ReadOutNet(BackboneNet):
             pooling = None
         if pooling is None:
             if hasattr(self, 'act_dict'):
-                RuntimeError('With mix features, pooling must be set!')
+                raise RuntimeError('With mix features, pooling must be set!')
             self.pool_avg, self.pool_max, self.num_pools = None, None, 0
         else:
             pool_size = pooling.split('_')[1:]
             pool_size = (int(pool_size[0]), int(pool_size[1]))
 
             if 'max' not in pooling and 'avg' not in pooling:
-                RuntimeError('Pooling %s not supported!' % pooling)
+                raise RuntimeError('Pooling %s not supported!' % pooling)
             self.pool_avg = nn.AdaptiveAvgPool2d(pool_size) if 'avg' in pooling else None
             self.pool_max = nn.AdaptiveMaxPool2d(pool_size) if 'max' in pooling else None
             self.num_pools = 2 if 'maxavg' in pooling or 'avgmax' in pooling else 1

@@ -4,6 +4,8 @@ A wrapper around publicly available pretrained models in PyTorch.
 
 import numpy as np
 import os
+from typing import Optional, List, Dict
+from itertools import chain
 
 import torch
 import torch.nn as nn
@@ -12,9 +14,9 @@ from torchvision import models as torch_models
 import torchvision.transforms.functional as torchvis_fun
 import clip
 
-from . import model_utils, pretrained_features, taskonomy_network
+from . import model_utils, pretrained_layers, taskonomy_network
 
-TORCHVISION_SEGMENTATION = [
+_TORCHVISION_SEGMENTATION = [
     'deeplabv3_mobilenet_v3_large',
     'deeplabv3_resnet50',
     'deeplabv3_resnet101',
@@ -22,6 +24,16 @@ TORCHVISION_SEGMENTATION = [
     'fcn_resnet101',
     'lraspp_mobilenet_v3_large'
 ]
+
+
+def available_models(flatten: Optional[bool] = False) -> [Dict, List]:
+    """List of supported models."""
+    all_models = {
+        'segmentation': _TORCHVISION_SEGMENTATION,
+        'taskonomy': ['taskonomy_%s' % t for t in taskonomy_network.LIST_OF_TASKS],
+        'clip': ['clip_%s' % c for c in clip.available_models()]
+    }
+    return list(chain.from_iterable(all_models.values())) if flatten else all_models
 
 
 class ViTLayers(nn.Module):
@@ -84,8 +96,7 @@ def vgg_features(model, layer, target_size):
             model.features, model.avgpool, nn.Flatten(1), *list(model.classifier.children())[:layer]
         )
     else:
-        features = None
-        RuntimeError('Unsupported layer %s' % layer)
+        raise RuntimeError('Unsupported layer %s' % layer)
     out_dim = generic_features_size(features, target_size)
     return features, out_dim
 
@@ -102,20 +113,21 @@ def generic_features_size(model, target_size, dtype=None):
     return out[0].shape
 
 
-def clip_features(model, network_name, layer, target_size):
+def clip_features(model, architecture, layer, target_size):
+    clip_arch = architecture.replace('clip_', '')
     if layer == 'encoder':
         features = model
-        if 'B32' in network_name or 'B16' in network_name or 'RN101' in network_name:
+        if clip_arch in ['ViT-B/32', 'ViT-B/16', 'RN101']:
             out_dim = 512
-        elif 'L14' in network_name or 'RN50x16' in network_name:
+        elif 'ViT-L/14' in architecture or 'RN50x16' in architecture:
             out_dim = 768
-        elif 'RN50x4' in network_name:
+        elif 'RN50x4' in architecture:
             out_dim = 640
         else:
             out_dim = 1024
     else:
-        if network_name.replace('clip_', '') in ['RN50', 'RN101', 'RN50x4', 'RN50x16', 'RN50x64']:
-            l_ind = pretrained_features.resnet_slice(layer, is_clip=True)
+        if clip_arch in ['RN50', 'RN101', 'RN50x4', 'RN50x16', 'RN50x64']:
+            l_ind = pretrained_layers.resnet_slice(layer, is_clip=True)
             features = nn.Sequential(*list(model.children())[:l_ind])
         else:
             features = ViTClipLayers(model, int(layer.replace('block', '')))
@@ -137,20 +149,25 @@ def regnet_features(model, layer, target_size):
             layer = 4
         features = nn.Sequential(model.stem, *list(model.trunk_output.children())[:layer])
     else:
-        features = None
-        RuntimeError('Unsupported layer %s' % layer)
+        raise RuntimeError('Unsupported layer %s' % layer)
     out_dim = generic_features_size(features, target_size)
     return features, out_dim
 
 
 def resnet_features(model, layer, target_size):
-    l_ind = pretrained_features.resnet_slice(layer)
+    l_ind = pretrained_layers.resnet_slice(layer)
     features = nn.Sequential(*list(model.children())[:l_ind])
     out_dim = generic_features_size(features, target_size)
     return features, out_dim
 
 
 def model_features(model, architecture, layer, target_size):
+    if layer not in pretrained_layers.available_layers(architecture):
+        raise RuntimeError(
+            'Layer %s is not supported for architecture %s. Call pretrained_layers.available_layers'
+            'to see a list of supported layer for an architecture.' % (layer, architecture)
+        )
+
     if layer == 'fc':
         features = model
         if hasattr(model, 'num_classes'):
@@ -172,12 +189,12 @@ def model_features(model, architecture, layer, target_size):
     elif 'clip' in architecture:
         features, out_dim = clip_features(model, architecture, layer, target_size)
     else:
-        features, out_dim = None, None
-        RuntimeError('Unsupported network %s' % architecture)
+        raise RuntimeError('Unsupported network %s' % architecture)
     return features, out_dim
 
 
-def mix_features(model: nn.Module, architecture: str, layers: list, target_size: int) -> (dict, list):
+def mix_features(model: nn.Module, architecture: str, layers: list, target_size: int) -> (
+        Dict, List[int]):
     """Return features extracted from a set of layers."""
     act_dict, _ = model_utils.register_model_hooks(model, architecture, layers)
     out_dims = []
@@ -188,19 +205,6 @@ def mix_features(model: nn.Module, architecture: str, layers: list, target_size:
         )
         out_dims.append(out_dim)
     return act_dict, out_dims
-
-
-def _split_clip_version(clip_name: str) -> str:
-    """Handling OpenAI Clip names."""
-    if 'B32' in clip_name:
-        clip_version = 'ViT-B/32'
-    elif 'B16' in clip_name:
-        clip_version = 'ViT-B/16'
-    elif 'L14' in clip_name:
-        clip_version = 'ViT-L/14'
-    else:
-        clip_version = clip_name.replace('clip_', '')
-    return clip_version
 
 
 def _taskonomy_weights(network_name: str, weights: str) -> [str, None]:
@@ -231,22 +235,26 @@ def _load_weights(model: nn.Module, weights: str) -> nn.Module:
         checkpoint = torch.load(weights, map_location='cpu')
         model.load_state_dict(checkpoint['state_dict'])
     else:
-        RuntimeError('Unknown weights: %s' % weights)
+        raise RuntimeError('Unknown weights: %s' % weights)
     return model
 
 
 def get_pretrained_model(network_name: str, weights: str) -> nn.Module:
     """Loading a network with/out pretrained weights."""
+    if network_name not in available_models(flatten=True):
+        raise RuntimeError('Network %s is not supported.' % network_name)
+
     if 'clip_' in network_name:
         # TODO: support for None
-        model, _ = clip.load(_split_clip_version(network_name))
+        clip_version = network_name.replace('clip_', '')
+        model, _ = clip.load(clip_version)
     elif 'taskonomy_' in network_name:
         model = taskonomy_network.TaskonomyEncoder()
         model = _load_weights(model, _taskonomy_weights(network_name, weights))
     else:
         # torchvision networks
         weights = _torchvision_weights(network_name, weights)
-        net_fun = torch_models.segmentation if network_name in TORCHVISION_SEGMENTATION else torch_models
+        net_fun = torch_models.segmentation if network_name in _TORCHVISION_SEGMENTATION else torch_models
         model = net_fun.__dict__[network_name](weights=weights)
     return model
 
@@ -255,6 +263,6 @@ def get_image_encoder(network_name: str, model: nn.Module) -> nn.Module:
     """Returns the encoder block of a network."""
     if 'clip' in network_name:
         return model.visual
-    elif network_name in TORCHVISION_SEGMENTATION:
+    elif network_name in _TORCHVISION_SEGMENTATION:
         return model.backbone
     return model
