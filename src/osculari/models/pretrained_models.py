@@ -2,33 +2,115 @@
 A wrapper around publicly available pretrained models in PyTorch.
 """
 
-import numpy as np
 import os
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Union, Tuple
 from itertools import chain
 
 import torch
 import torch.nn as nn
 
 from torchvision import models as torch_models
-import torchvision.transforms.functional as torchvis_fun
 import clip
 
 from . import model_utils, pretrained_layers, taskonomy_network
 
 _TORCHVISION_SEGMENTATION = [
     'deeplabv3_mobilenet_v3_large',
-    'deeplabv3_resnet50',
     'deeplabv3_resnet101',
-    'fcn_resnet50',
+    'deeplabv3_resnet50',
     'fcn_resnet101',
+    'fcn_resnet50',
     'lraspp_mobilenet_v3_large'
 ]
 
+_TORCHVISION_IMAGENET = [
+    'alexnet',
+    'convnext_base',
+    'convnext_large',
+    'convnext_small',
+    'convnext_tiny',
+    'densenet121',
+    'densenet161',
+    'densenet169',
+    'densenet201',
+    'efficientnet_b0',
+    'efficientnet_b1',
+    'efficientnet_b2',
+    'efficientnet_b3',
+    'efficientnet_b4',
+    'efficientnet_b5',
+    'efficientnet_b6',
+    'efficientnet_b7',
+    'efficientnet_v2_l',
+    'efficientnet_v2_m',
+    'efficientnet_v2_s',
+    'googlenet',
+    'inception_v3',
+    'maxvit_t',
+    'mnasnet0_5',
+    'mnasnet0_75',
+    'mnasnet1_0',
+    'mnasnet1_3',
+    'mobilenet_v2',
+    'mobilenet_v3_large',
+    'mobilenet_v3_small',
+    'regnet_x_16gf',
+    'regnet_x_1_6gf',
+    'regnet_x_32gf',
+    'regnet_x_3_2gf',
+    'regnet_x_400mf',
+    'regnet_x_800mf',
+    'regnet_x_8gf',
+    'regnet_y_128gf',
+    'regnet_y_16gf',
+    'regnet_y_1_6gf',
+    'regnet_y_32gf',
+    'regnet_y_3_2gf',
+    'regnet_y_400mf',
+    'regnet_y_800mf',
+    'regnet_y_8gf',
+    'resnet101',
+    'resnet152',
+    'resnet18',
+    'resnet34',
+    'resnet50',
+    'resnext101_32x8d',
+    'resnext101_64x4d',
+    'resnext50_32x4d',
+    'shufflenet_v2_x0_5',
+    'shufflenet_v2_x1_0',
+    'shufflenet_v2_x1_5',
+    'shufflenet_v2_x2_0',
+    'squeezenet1_0',
+    'squeezenet1_1',
+    'swin_b',
+    'swin_s',
+    'swin_t',
+    'swin_v2_b',
+    'swin_v2_s',
+    'swin_v2_t',
+    'vgg11',
+    'vgg11_bn',
+    'vgg13',
+    'vgg13_bn',
+    'vgg16',
+    'vgg16_bn',
+    'vgg19',
+    'vgg19_bn',
+    'vit_b_16',
+    'vit_b_32',
+    'vit_h_14',
+    'vit_l_16',
+    'vit_l_32',
+    'wide_resnet101_2',
+    'wide_resnet50_2'
+]
 
-def available_models(flatten: Optional[bool] = False) -> [Dict, List]:
+
+def available_models(flatten: Optional[bool] = False) -> Union[Dict, List]:
     """List of supported models."""
     all_models = {
+        'imagenet': _TORCHVISION_IMAGENET,
         'segmentation': _TORCHVISION_SEGMENTATION,
         'taskonomy': ['taskonomy_%s' % t for t in taskonomy_network.LIST_OF_TASKS],
         'clip': ['clip_%s' % c for c in clip.available_models()]
@@ -37,13 +119,17 @@ def available_models(flatten: Optional[bool] = False) -> [Dict, List]:
 
 
 class ViTLayers(nn.Module):
-    def __init__(self, parent_model, block):
-        super().__init__()
+    def __init__(self, parent_model: nn.Module, layer: str) -> None:
+        super(ViTLayers, self).__init__()
         self.parent_model = parent_model
-        block = block + 1
+        block = int(layer.replace('block', '')) + 1
+        max_blocks = len(self.parent_model.encoder.layers)
+        if block > max_blocks:
+            raise RuntimeError('Layer %s exceeds the total number of %d blocks.' % (layer, max_blocks))
         self.parent_model.encoder.layers = self.parent_model.encoder.layers[:block]
+        delattr(self.parent_model, 'heads')
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         # Reshape and permute the input tensor
         x = self.parent_model._process_input(x)
         n = x.shape[0]
@@ -56,13 +142,16 @@ class ViTLayers(nn.Module):
 
 
 class ViTClipLayers(nn.Module):
-    def __init__(self, parent_model, block):
-        super().__init__()
+    def __init__(self, parent_model: nn.Module, layer: str) -> None:
+        super(ViTClipLayers, self).__init__()
         self.parent_model = parent_model
-        block = block + 1
+        block = int(layer.replace('block', '')) + 1
+        max_blocks = len(self.parent_model.transformer.resblocks)
+        if block > max_blocks:
+            raise RuntimeError('Layer %s exceeds the total number of %d blocks.' % (layer, max_blocks))
         self.parent_model.transformer.resblocks = self.parent_model.transformer.resblocks[:block]
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.parent_model.conv1(x)  # shape = [*, width, grid, grid]
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
@@ -80,13 +169,12 @@ class ViTClipLayers(nn.Module):
         return x
 
 
-def vit_features(model, layer, target_size):
-    features = ViTLayers(model, int(layer.replace('block', '')))
-    out_dim = generic_features_size(features, target_size)
-    return features, out_dim
+def vit_features(model: nn.Module, layer: str) -> ViTLayers:
+    """Creating a feature extractor from ViT network."""
+    return ViTLayers(model, layer)
 
 
-def vgg_features(model, layer, target_size):
+def vgg_features(model, layer):
     if 'feature' in layer:
         layer = int(layer.replace('feature', '')) + 1
         features = nn.Sequential(*list(model.features.children())[:layer])
@@ -97,23 +185,11 @@ def vgg_features(model, layer, target_size):
         )
     else:
         raise RuntimeError('Unsupported layer %s' % layer)
-    out_dim = generic_features_size(features, target_size)
-    return features, out_dim
+    return features
 
 
-def generic_features_size(model, target_size, dtype=None):
-    img = np.random.randint(0, 256, (target_size, target_size, 3)).astype('float32') / 255
-    img = torchvis_fun.to_tensor(img).unsqueeze(0)
-    if dtype is not None:
-        img = img.cuda()
-        img = img.type(dtype)
-    model.eval()
-    with torch.no_grad():
-        out = model(img)
-    return out[0].shape
-
-
-def clip_features(model, architecture, layer, target_size):
+def clip_features(model: nn.Module, architecture: str, layer: str, target_size: int) -> (nn.Module, Tuple[int]):
+    """Creating a feature extractor from clip network."""
     clip_arch = architecture.replace('clip_', '')
     if layer == 'encoder':
         features = model
@@ -127,15 +203,14 @@ def clip_features(model, architecture, layer, target_size):
             out_dim = 1024
     else:
         if clip_arch in ['RN50', 'RN101', 'RN50x4', 'RN50x16', 'RN50x64']:
-            l_ind = pretrained_layers.resnet_slice(layer, is_clip=True)
-            features = nn.Sequential(*list(model.children())[:l_ind])
+            features = resnet_features(model, layer, is_clip=True)
         else:
-            features = ViTClipLayers(model, int(layer.replace('block', '')))
-        out_dim = generic_features_size(features, target_size, model.conv1.weight.dtype)
+            features = ViTClipLayers(model, layer)
+        out_dim = model_utils.generic_features_size(features, target_size, model.conv1.weight.dtype)
     return features, out_dim
 
 
-def regnet_features(model, layer, target_size):
+def regnet_features(model, layer):
     if 'stem' in layer:
         features = model.stem
     elif 'block' in layer:
@@ -150,50 +225,42 @@ def regnet_features(model, layer, target_size):
         features = nn.Sequential(model.stem, *list(model.trunk_output.children())[:layer])
     else:
         raise RuntimeError('Unsupported layer %s' % layer)
-    out_dim = generic_features_size(features, target_size)
-    return features, out_dim
+    return features
 
 
-def resnet_features(model, layer, target_size):
-    l_ind = pretrained_layers.resnet_slice(layer)
-    features = nn.Sequential(*list(model.children())[:l_ind])
-    out_dim = generic_features_size(features, target_size)
-    return features, out_dim
+def resnet_features(model: nn.Module, layer: str, is_clip: Optional[bool] = False) -> nn.Module:
+    """Creating a feature extractor from resnet network."""
+    l_ind = pretrained_layers.resnet_cutoff_slice(layer, is_clip=is_clip)
+    return nn.Sequential(*list(model.children())[:l_ind])
 
 
-def model_features(model, architecture, layer, target_size):
+def model_features(model: nn.Module, architecture: str, layer: str, target_size: int) -> (nn.Module, Tuple[int]):
+    """Return features extracted from one layer."""
     if layer not in pretrained_layers.available_layers(architecture):
         raise RuntimeError(
             'Layer %s is not supported for architecture %s. Call pretrained_layers.available_layers'
             'to see a list of supported layer for an architecture.' % (layer, architecture)
         )
-
-    if layer == 'fc':
-        features = model
-        if hasattr(model, 'num_classes'):
-            out_dim = model.num_classes
-        else:
-            last_layer = list(model.children())[-1]
-            if type(last_layer) is torch.nn.modules.container.Sequential:
-                out_dim = last_layer[-1].out_features
-            else:
-                out_dim = last_layer.out_features
-    elif model_utils.is_resnet_backbone(architecture):
-        features, out_dim = resnet_features(model, layer, target_size)
-    elif 'regnet' in architecture:
-        features, out_dim = regnet_features(model, layer, target_size)
-    elif 'vgg' in architecture:
-        features, out_dim = vgg_features(model, layer, target_size)
-    elif 'vit_' in architecture:
-        features, out_dim = vit_features(model, layer, target_size)
+    if architecture in _TORCHVISION_IMAGENET and layer == 'fc':
+        features, out_dim = model, 1000
     elif 'clip' in architecture:
         features, out_dim = clip_features(model, architecture, layer, target_size)
     else:
-        raise RuntimeError('Unsupported network %s' % architecture)
+        if model_utils.is_resnet_backbone(architecture):
+            features = resnet_features(model, layer)
+        elif 'regnet' in architecture:
+            features = regnet_features(model, layer)
+        elif 'vgg' in architecture:
+            features = vgg_features(model, layer)
+        elif 'vit_' in architecture:
+            features = vit_features(model, layer)
+        else:
+            raise RuntimeError('Unsupported network %s' % architecture)
+        out_dim = model_utils.generic_features_size(features, target_size)
     return features, out_dim
 
 
-def mix_features(model: nn.Module, architecture: str, layers: list, target_size: int) -> (
+def mix_features(model: nn.Module, architecture: str, layers: List[str], target_size: int) -> (
         Dict, List[int]):
     """Return features extracted from a set of layers."""
     act_dict, _ = model_utils.register_model_hooks(model, architecture, layers)
@@ -207,7 +274,7 @@ def mix_features(model: nn.Module, architecture: str, layers: list, target_size:
     return act_dict, out_dims
 
 
-def _taskonomy_weights(network_name: str, weights: str) -> [str, None]:
+def _taskonomy_weights(network_name: str, weights: str) -> Union[str, None]:
     """Handling default Taskonomy weights."""
     if weights is None:
         return None
@@ -217,7 +284,7 @@ def _taskonomy_weights(network_name: str, weights: str) -> [str, None]:
     return weights
 
 
-def _torchvision_weights(network_name: str, weights: str) -> [str, None]:
+def _torchvision_weights(network_name: str, weights: str) -> Union[str, None]:
     """Handling default torchvision weights."""
     if weights == 'none':
         return None

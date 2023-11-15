@@ -1,18 +1,14 @@
 """
-
+A set of wrapper classes to access pretrained networks for different purposes.
 """
 
 import numpy as np
-from typing import Optional
+from typing import Optional, List, Union, Dict, Type
 
 import torch
 import torch.nn as nn
 
 from . import pretrained_models as pretraineds
-
-import importlib
-
-importlib.reload(pretraineds)
 
 __aLL__ = [
     "ActivationLoader",
@@ -25,13 +21,12 @@ class BackboneNet(nn.Module):
 
     def __init__(self, architecture: str, weights: str) -> None:
         super(BackboneNet, self).__init__()
-
         model = pretraineds.get_pretrained_model(architecture, weights)
         self.architecture = architecture
         self.backbone = pretraineds.get_image_encoder(architecture, model)
         self.in_type = self.get_net_input_type(self.backbone)
 
-    def get_net_input_type(self, model: nn.Module) -> [torch.float16, torch.float32]:
+    def get_net_input_type(self, model: nn.Module) -> Type:
         """Returning the network's input image type."""
         return model.conv1.weight.dtype if 'clip' in self.architecture else torch.float32
 
@@ -60,10 +55,9 @@ class ActivationLoader(BackboneNet):
 class ReadOutNet(BackboneNet):
     """Reading out features from a network from one or multiple layers."""
 
-    def __init__(self, architecture: str, target_size: int, weights: str, layers: [str, list],
+    def __init__(self, architecture: str, target_size: int, weights: str, layers: Union[str, List[str]],
                  pooling: Optional[str] = None) -> None:
         super(ReadOutNet, self).__init__(architecture, weights)
-
         if layers is list and len(layers) > 1:
             feature_fun = pretraineds.mix_features
         else:
@@ -76,7 +70,7 @@ class ReadOutNet(BackboneNet):
             pooling = None
         if pooling is None:
             if hasattr(self, 'act_dict'):
-                raise RuntimeError('With mix features, pooling must be set!')
+                raise RuntimeError('With mix features (multiple layers readout), pooling must be set!')
             self.pool_avg, self.pool_max, self.num_pools = None, None, 0
         else:
             pool_size = pooling.split('_')[1:]
@@ -100,7 +94,7 @@ class ReadOutNet(BackboneNet):
             else:
                 self.out_dim = (self.out_dim[0], self.num_pools, *pool_size)
 
-    def _do_pool(self, x):
+    def _do_pool(self, x: torch.Tensor) -> torch.Tensor:
         if self.num_pools == 0 or len(x.shape) < 3:
             return x
         if len(x.shape) == 3:
@@ -108,7 +102,8 @@ class ReadOutNet(BackboneNet):
         x_pools = [pool(x) for pool in [self.pool_avg, self.pool_max] if pool is not None]
         return torch.stack(x_pools, dim=1)
 
-    def extract_features(self, x):
+    def extract_features(self, x: torch.Tensor) -> torch.Tensor:
+        """Extracting features with pooling."""
         x = super(ReadOutNet, self).extract_features(x)
         if hasattr(self, 'act_dict'):
             xs = []
@@ -138,15 +133,16 @@ class ClassifierNet(ReadOutNet):
             # FIXME: better support for other linear classifiers
             self.fc = None  # e.g. for SVM
 
-    def do_features(self, x):
+    def do_features(self, x: torch.Tensor) -> torch.Tensor:
         x = self.extract_features(x)
         return torch.flatten(x, start_dim=1)
 
-    def do_classifier(self, x):
+    def do_classifier(self, x: torch.Tensor) -> torch.Tensor:
         return x if self.fc is None else self.fc(x)
 
 
-def load_model(net_class, weights, target_size):
+def load_model(net_class: nn.Module, weights: str, target_size: int) -> ReadOutNet:
+    # FIXME: maybe static method in readout
     print('Loading test model from %s!' % weights)
     checkpoint = torch.load(weights, map_location='cpu')
     architecture = checkpoint['arch']
@@ -173,7 +169,7 @@ def make_model(net_class, args, *extra_params):
         return net_class(*extra_params, classifier_kwargs, readout_kwargs)
 
 
-def _readout_kwargs(architecture, target_size, transfer_weights, pooling):
+def _readout_kwargs(architecture: str, target_size: int, transfer_weights: str, pooling: str) -> Dict:
     return {
         'architecture': architecture,
         'target_size': target_size,
