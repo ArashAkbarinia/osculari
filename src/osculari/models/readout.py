@@ -3,7 +3,7 @@ A set of wrapper classes to access pretrained networks for different purposes.
 """
 
 import numpy as np
-from typing import Optional, List, Union, Dict, Type
+from typing import Optional, List, Union, Type, Any, Literal
 
 import torch
 import torch.nn as nn
@@ -11,8 +11,8 @@ import torch.nn as nn
 from . import pretrained_models as pretraineds
 
 __aLL__ = [
-    "ActivationLoader",
-    "ClassifierNet"
+    "diff_paradigm_2afc",
+    "cat_paradigm_2afc"
 ]
 
 
@@ -55,21 +55,27 @@ class ActivationLoader(BackboneNet):
 class ReadOutNet(BackboneNet):
     """Reading out features from a network from one or multiple layers."""
 
-    def __init__(self, architecture: str, target_size: int, weights: str, layers: Union[str, List[str]],
-                 pooling: Optional[str] = None) -> None:
+    def __init__(self, architecture: str, target_size: int, weights: str,
+                 layers: Union[str, List[str]], pooling: Optional[str] = None) -> None:
         super(ReadOutNet, self).__init__(architecture, weights, target_size)
         if isinstance(layers, list) and len(layers) > 1:
-            self.act_dict, self.out_dim = pretraineds.mix_features(self.backbone, architecture, layers, target_size)
+            self.act_dict, self.out_dim = pretraineds.mix_features(
+                self.backbone, architecture, layers, target_size
+            )
         else:
             if isinstance(layers, list):
                 layers = layers[0]
-            self.backbone, self.out_dim = pretraineds.model_features(self.backbone, architecture, layers, target_size)
+            self.backbone, self.out_dim = pretraineds.model_features(
+                self.backbone, architecture, layers, target_size
+            )
 
         if type(self.out_dim) is int:
             pooling = None
         if pooling is None:
             if hasattr(self, 'act_dict'):
-                raise RuntimeError('With mix features (multiple layers readout), pooling must be set!')
+                raise RuntimeError(
+                    'With mix features (multiple layers readout), pooling must be set!'
+                )
             self.pool_avg, self.pool_max, self.num_pools = None, None, 0
         else:
             pool_size = pooling.split('_')[1:]
@@ -116,15 +122,15 @@ class ReadOutNet(BackboneNet):
         return x
 
 
-class ClassifierNet(ReadOutNet):
-    """Adding a linear classifier on top of readout features."""
+class ProbeNet(ReadOutNet):
+    """Adding a linear layer on top of readout features."""
 
-    def __init__(self, input_nodes: int, num_classes: int, classifier: str, **kwargs) -> None:
-        super(ClassifierNet, self).__init__(**kwargs)
-
+    def __init__(self, input_nodes: int, num_classes: int, probe_layer: Optional[str] = 'nn',
+                 **kwargs) -> None:
+        super(ProbeNet, self).__init__(**kwargs)
         self.input_nodes = input_nodes
         self.feature_units = np.prod(self.out_dim)
-        if classifier == 'nn':
+        if probe_layer == 'nn':
             self.fc = nn.Linear(int(self.feature_units * self.input_nodes), num_classes)
             # TODO: support for other initialisation
             torch.nn.init.constant_(self.fc.weight, 0)
@@ -136,42 +142,30 @@ class ClassifierNet(ReadOutNet):
         x = self.extract_features(x)
         return torch.flatten(x, start_dim=1)
 
-    def do_classifier(self, x: torch.Tensor) -> torch.Tensor:
+    def do_probe_layer(self, x: torch.Tensor) -> torch.Tensor:
         return x if self.fc is None else self.fc(x)
 
 
-def load_model(net_class: nn.Module, weights: str, target_size: int) -> ReadOutNet:
-    # FIXME: maybe static method in readout
-    print('Loading test model from %s!' % weights)
-    checkpoint = torch.load(weights, map_location='cpu')
-    architecture = checkpoint['arch']
-    transfer_weights = checkpoint['transfer_weights']
-    classifier = checkpoint['net']['classifier'] if 'net' in checkpoint else 'nn'
-    pooling = checkpoint['net']['pooling'] if 'net' in checkpoint else None
-    extra_params = checkpoint['net']['extra'] if 'net' in checkpoint else []
+class Classifier2AFC(ProbeNet):
+    def __init__(self, merge_paradigm: Literal['diff', 'cat'], **kwargs: Any):
+        input_nodes = 2 if merge_paradigm == 'cat' else 1
+        super(Classifier2AFC, self).__init__(input_nodes=input_nodes, num_classes=2, **kwargs)
+        self.merge_paradigm = merge_paradigm
 
-    readout_kwargs = _readout_kwargs(architecture, target_size, transfer_weights, pooling)
-    classifier_kwargs = {'classifier': classifier}
-    model = net_class(*extra_params, classifier_kwargs, readout_kwargs)
-    model.load_state_dict(checkpoint['state_dict'], strict=False)
-    return model
+    def forward(self, x0: torch.Tensor, x1: torch.Tensor) -> torch.Tensor:
+        x0 = self.do_features(x0)
+        x1 = self.do_features(x1)
+        x = torch.cat([x0, x1], dim=1) if self.merge_paradigm == 'cat' else torch.abs(x0 - x1)
+        return self.do_probe_layer(x)
 
-
-def make_model(net_class, args, *extra_params):
-    if args.test_net:
-        return load_model(net_class, args.test_net, args.target_size)
-    else:
-        readout_kwargs = _readout_kwargs(
-            args.architecture, args.target_size, args.transfer_weights, args.pooling
-        )
-        classifier_kwargs = {'classifier': args.classifier}
-        return net_class(*extra_params, classifier_kwargs, readout_kwargs)
+    @staticmethod
+    def loss_function(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        return nn.functional.cross_entropy(output, target)
 
 
-def _readout_kwargs(architecture: str, target_size: int, transfer_weights: str, pooling: str) -> Dict:
-    return {
-        'architecture': architecture,
-        'target_size': target_size,
-        'transfer_weights': transfer_weights,
-        'pooling': pooling
-    }
+def diff_paradigm_2afc(**kwargs: Any):
+    return Classifier2AFC(merge_paradigm='diff', **kwargs)
+
+
+def cat_paradigm_2afc(**kwargs: Any):
+    return Classifier2AFC(merge_paradigm='cat', **kwargs)
