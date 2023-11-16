@@ -1,4 +1,4 @@
 numpy
 torch
 torchvision
-git+https://github.com/openai/CLIP.git
+clip @ git+https://github.com/openai/CLIP.git
