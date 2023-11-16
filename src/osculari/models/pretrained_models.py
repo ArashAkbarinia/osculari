@@ -302,10 +302,11 @@ def _load_weights(model: nn.Module, weights: str) -> nn.Module:
     return model
 
 
-def get_pretrained_model(network_name: str, weights: str) -> nn.Module:
+def get_pretrained_model(network_name: str, weights: str, target_size: int) -> nn.Module:
     """Loading a network with/out pretrained weights."""
     if network_name not in available_models(flatten=True):
         raise RuntimeError('Network %s is not supported.' % network_name)
+    model_utils.check_input_size(network_name, target_size)
 
     if 'clip_' in network_name:
         # TODO: support for None

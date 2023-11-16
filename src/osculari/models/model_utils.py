@@ -99,3 +99,19 @@ def generic_features_size(model: nn.Module, target_size: int, dtype: Optional[Ty
     with torch.no_grad():
         out = model(img)
     return out[0].shape
+
+
+def check_input_size(architecture: str, target_size: int) -> None:
+    expected_sizes = {
+        'clip_RN50x4': 288,
+        'clip_RN50x16': 384,
+        'clip_RN50x64': 448,
+        'clip_ViT-L/14@336px': 336,
+    }
+    raise_error = 0
+    if 'vit_' in architecture and target_size != 224:
+        raise_error = 224
+    elif architecture in expected_sizes and target_size != expected_sizes[architecture]:
+        raise_error = expected_sizes[architecture]
+    if raise_error > 0:
+        raise RuntimeError('Network %s expects size %s but got %d' % (architecture, raise_error, target_size))

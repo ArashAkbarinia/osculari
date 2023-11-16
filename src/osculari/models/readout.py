@@ -19,9 +19,9 @@ __aLL__ = [
 class BackboneNet(nn.Module):
     """Handling the backbone networks."""
 
-    def __init__(self, architecture: str, weights: str) -> None:
+    def __init__(self, architecture: str, weights: str, target_size: int) -> None:
         super(BackboneNet, self).__init__()
-        model = pretraineds.get_pretrained_model(architecture, weights)
+        model = pretraineds.get_pretrained_model(architecture, weights, target_size)
         self.architecture = architecture
         self.backbone = pretraineds.get_image_encoder(architecture, model)
         self.in_type = self.get_net_input_type(self.backbone)
@@ -57,7 +57,7 @@ class ReadOutNet(BackboneNet):
 
     def __init__(self, architecture: str, target_size: int, weights: str, layers: Union[str, List[str]],
                  pooling: Optional[str] = None) -> None:
-        super(ReadOutNet, self).__init__(architecture, weights)
+        super(ReadOutNet, self).__init__(architecture, weights, target_size)
         if isinstance(layers, list) and len(layers) > 1:
             self.act_dict, self.out_dim = pretraineds.mix_features(self.backbone, architecture, layers, target_size)
         else:
