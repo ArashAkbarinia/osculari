@@ -9,12 +9,12 @@ from torchvision import models as torch_models
 from . import model_utils
 
 
-def available_resnet_layers(_architecture: str) -> List[str]:
+def _available_resnet_layers(_architecture: str) -> List[str]:
     # TODO better support for more intermediate layers
     return ['block%d' % b for b in range(5)]
 
 
-def available_vit_layers(architecture: str) -> List[str]:
+def _available_vit_layers(architecture: str) -> List[str]:
     max_block = 0
     if 'b_32' in architecture or 'B/32' in architecture or 'b_16' in architecture or 'B/16' in architecture:
         max_block = 12
@@ -25,7 +25,7 @@ def available_vit_layers(architecture: str) -> List[str]:
     return ['block%d' % b for b in range(max_block)]
 
 
-def available_vgg_layers(architecture: str) -> List[str]:
+def _available_vgg_layers(architecture: str) -> List[str]:
     max_features = {
         'vgg11': 20, 'vgg11_bn': 28,
         'vgg13': 24, 'vgg13_bn': 34,
@@ -33,42 +33,65 @@ def available_vgg_layers(architecture: str) -> List[str]:
         'vgg19': 36, 'vgg19_bn': 52,
     }
     return [
-        *['feature%d' % b for b in range(max_features[architecture])],
+        *['feature%d' % b for b in range(max_features[architecture] + 1)],
         *['classifier%d' % b for b in [0, 1, 3, 4]],
     ]
 
 
-def available_regnet_layers(_architecture: str) -> List[str]:
+def _available_regnet_layers(_architecture: str) -> List[str]:
     # TODO better support for more intermediate layers
     return ['block%d' % b for b in range(5)]
 
 
-def available_taskonomy_layers(architecture: str) -> List[str]:
-    return [*available_resnet_layers(architecture), 'encoder']
+def _available_mobilenet_layers(architecture: str) -> List[str]:
+    max_features = 0
+    if 'mobilenet_v3_large' in architecture:
+        max_features = 16
+    elif 'mobilenet_v3_small' in architecture:
+        max_features = 12
+    elif architecture == 'mobilenet_v2':
+        max_features = 18
+    classifiers = []
+    if architecture in ['mobilenet_v3_large', 'mobilenet_v3_small']:
+        classifiers = [0, 1]
+    return [
+        *['feature%d' % b for b in range(max_features + 1)],
+        *['classifier%d' % b for b in classifiers],
+    ]
 
 
-def available_clip_layers(architecture: str) -> List[str]:
+def _available_taskonomy_layers(architecture: str) -> List[str]:
+    return [*_available_resnet_layers(architecture), 'encoder']
+
+
+def _available_clip_layers(architecture: str) -> List[str]:
     if architecture.replace('clip_', '') in ['RN50', 'RN101', 'RN50x4', 'RN50x16', 'RN50x64']:
-        layers = available_resnet_layers(architecture)
+        layers = _available_resnet_layers(architecture)
     else:
-        layers = available_vit_layers(architecture)
+        layers = _available_vit_layers(architecture)
     return [*layers, 'encoder']
 
 
-def available_segmentation_layers(architecture: str) -> List[str]:
-    # TODO
-    pass
+def _available_segmentation_layers(architecture: str) -> List[str]:
+    if 'resnet' in architecture:
+        return _available_resnet_layers(architecture)
+    elif 'mobilenet' in architecture:
+        return _available_mobilenet_layers(architecture)
+    else:
+        RuntimeError('Unsupported segmentation network: %s' % architecture)
 
 
-def available_imagenet_layers(architecture: str) -> List[str]:
+def _available_imagenet_layers(architecture: str) -> List[str]:
     if model_utils.is_resnet_backbone(architecture):
-        common_layers = available_resnet_layers(architecture)
+        common_layers = _available_resnet_layers(architecture)
     elif 'vit_' in architecture:
-        common_layers = available_vit_layers(architecture)
+        common_layers = _available_vit_layers(architecture)
     elif 'vgg' in architecture:
-        common_layers = available_vgg_layers(architecture)
+        common_layers = _available_vgg_layers(architecture)
     elif 'regnet' in architecture:
-        common_layers = available_regnet_layers(architecture)
+        common_layers = _available_regnet_layers(architecture)
+    elif 'mobilenet' in architecture:
+        return _available_mobilenet_layers(architecture)
     else:
         raise RuntimeError('Unsupported imagenet architecture %s' % architecture)
     return [*common_layers, 'fc']
@@ -77,13 +100,13 @@ def available_imagenet_layers(architecture: str) -> List[str]:
 def available_layers(architecture: str) -> List[str]:
     """Returning a list of supported layers for each architecture."""
     if 'clip_' in architecture:
-        return available_clip_layers(architecture)
+        return _available_clip_layers(architecture)
     elif 'taskonomy_' in architecture:
-        return available_taskonomy_layers(architecture)
+        return _available_taskonomy_layers(architecture)
     elif architecture in torch_models.list_models(module=torch_models.segmentation):
-        return available_segmentation_layers(architecture)
+        return _available_segmentation_layers(architecture)
     elif architecture in torch_models.list_models(module=torch_models):
-        return available_imagenet_layers(architecture)
+        return _available_imagenet_layers(architecture)
     else:
         raise RuntimeError('Architecture %s is not supported.' % architecture)
 

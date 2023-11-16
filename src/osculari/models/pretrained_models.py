@@ -190,6 +190,21 @@ def _vgg_features(model: nn.Module, layer: str) -> nn.Module:
     return features
 
 
+def _mobilenet_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from VGG network."""
+    if 'feature' in layer:
+        layer = int(layer.replace('feature', '')) + 1
+        features = nn.Sequential(*list(model.features.children())[:layer])
+    elif 'classifier' in layer:
+        layer = int(layer.replace('classifier', '')) + 1
+        features = nn.Sequential(
+            model.features, model.avgpool, nn.Flatten(1), *list(model.classifier.children())[:layer]
+        )
+    else:
+        raise RuntimeError('Unsupported mobilenet layer %s' % layer)
+    return features
+
+
 def _clip_features(model: nn.Module, architecture: str, layer: str, target_size: int) -> (nn.Module, Tuple[int]):
     """Creating a feature extractor from CLIP network."""
     clip_arch = architecture.replace('clip_', '')
@@ -248,6 +263,8 @@ def model_features(model: nn.Module, architecture: str, layer: str, target_size:
             features = _regnet_features(model, layer)
         elif 'vgg' in architecture:
             features = _vgg_features(model, layer)
+        elif 'mobilenet' in architecture:
+            features = _mobilenet_features(model, layer)
         elif 'vit_' in architecture:
             features = _vit_features(model, layer)
         else:
