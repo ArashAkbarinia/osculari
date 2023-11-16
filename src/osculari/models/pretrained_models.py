@@ -120,6 +120,7 @@ def available_models(flatten: Optional[bool] = False) -> Union[Dict, List]:
 
 class ViTLayers(nn.Module):
     def __init__(self, parent_model: nn.Module, layer: str) -> None:
+        # TODO: support for conv_proj
         super(ViTLayers, self).__init__()
         self.parent_model = parent_model
         block = int(layer.replace('block', '')) + 1
@@ -169,12 +170,13 @@ class ViTClipLayers(nn.Module):
         return x
 
 
-def vit_features(model: nn.Module, layer: str) -> ViTLayers:
+def _vit_features(model: nn.Module, layer: str) -> ViTLayers:
     """Creating a feature extractor from ViT network."""
     return ViTLayers(model, layer)
 
 
-def vgg_features(model, layer):
+def _vgg_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from VGG network."""
     if 'feature' in layer:
         layer = int(layer.replace('feature', '')) + 1
         features = nn.Sequential(*list(model.features.children())[:layer])
@@ -184,12 +186,12 @@ def vgg_features(model, layer):
             model.features, model.avgpool, nn.Flatten(1), *list(model.classifier.children())[:layer]
         )
     else:
-        raise RuntimeError('Unsupported layer %s' % layer)
+        raise RuntimeError('Unsupported vgg layer %s' % layer)
     return features
 
 
-def clip_features(model: nn.Module, architecture: str, layer: str, target_size: int) -> (nn.Module, Tuple[int]):
-    """Creating a feature extractor from clip network."""
+def _clip_features(model: nn.Module, architecture: str, layer: str, target_size: int) -> (nn.Module, Tuple[int]):
+    """Creating a feature extractor from CLIP network."""
     clip_arch = architecture.replace('clip_', '')
     if layer == 'encoder':
         features = model
@@ -203,33 +205,27 @@ def clip_features(model: nn.Module, architecture: str, layer: str, target_size: 
             out_dim = 1024
     else:
         if clip_arch in ['RN50', 'RN101', 'RN50x4', 'RN50x16', 'RN50x64']:
-            features = resnet_features(model, layer, is_clip=True)
+            features = _resnet_features(model, layer, is_clip=True)
         else:
             features = ViTClipLayers(model, layer)
         out_dim = model_utils.generic_features_size(features, target_size, model.conv1.weight.dtype)
     return features, out_dim
 
 
-def regnet_features(model, layer):
-    if 'stem' in layer:
+def _regnet_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from RegNet network."""
+    if 'block0' in layer:
         features = model.stem
     elif 'block' in layer:
-        if layer == 'block1':
-            layer = 1
-        elif layer == 'block2':
-            layer = 2
-        elif layer == 'block3':
-            layer = 3
-        elif layer == 'block4':
-            layer = 4
+        layer = int(layer[-1])
         features = nn.Sequential(model.stem, *list(model.trunk_output.children())[:layer])
     else:
-        raise RuntimeError('Unsupported layer %s' % layer)
+        raise RuntimeError('Unsupported regnet layer %s' % layer)
     return features
 
 
-def resnet_features(model: nn.Module, layer: str, is_clip: Optional[bool] = False) -> nn.Module:
-    """Creating a feature extractor from resnet network."""
+def _resnet_features(model: nn.Module, layer: str, is_clip: Optional[bool] = False) -> nn.Module:
+    """Creating a feature extractor from ResNet network."""
     l_ind = pretrained_layers.resnet_cutoff_slice(layer, is_clip=is_clip)
     return nn.Sequential(*list(model.children())[:l_ind])
 
@@ -244,16 +240,16 @@ def model_features(model: nn.Module, architecture: str, layer: str, target_size:
     if architecture in _TORCHVISION_IMAGENET and layer == 'fc':
         features, out_dim = model, 1000
     elif 'clip' in architecture:
-        features, out_dim = clip_features(model, architecture, layer, target_size)
+        features, out_dim = _clip_features(model, architecture, layer, target_size)
     else:
         if model_utils.is_resnet_backbone(architecture):
-            features = resnet_features(model, layer)
+            features = _resnet_features(model, layer)
         elif 'regnet' in architecture:
-            features = regnet_features(model, layer)
+            features = _regnet_features(model, layer)
         elif 'vgg' in architecture:
-            features = vgg_features(model, layer)
+            features = _vgg_features(model, layer)
         elif 'vit_' in architecture:
-            features = vit_features(model, layer)
+            features = _vit_features(model, layer)
         else:
             raise RuntimeError('Unsupported network %s' % architecture)
         out_dim = model_utils.generic_features_size(features, target_size)

@@ -11,8 +11,7 @@ from . import model_utils
 
 def available_resnet_layers(_architecture: str) -> List[str]:
     # TODO better support for more intermediate layers
-    common_layers = ['block%d' % b for b in range(5)]
-    return common_layers
+    return ['block%d' % b for b in range(5)]
 
 
 def available_vit_layers(architecture: str) -> List[str]:
@@ -24,6 +23,24 @@ def available_vit_layers(architecture: str) -> List[str]:
     elif 'h_14' in architecture:
         max_block = 32
     return ['block%d' % b for b in range(max_block)]
+
+
+def available_vgg_layers(architecture: str) -> List[str]:
+    max_features = {
+        'vgg11': 20, 'vgg11_bn': 28,
+        'vgg13': 24, 'vgg13_bn': 34,
+        'vgg16': 30, 'vgg16_bn': 43,
+        'vgg19': 36, 'vgg19_bn': 52,
+    }
+    return [
+        *['feature%d' % b for b in range(max_features[architecture])],
+        *['classifier%d' % b for b in [0, 1, 3, 4]],
+    ]
+
+
+def available_regnet_layers(_architecture: str) -> List[str]:
+    # TODO better support for more intermediate layers
+    return ['block%d' % b for b in range(5)]
 
 
 def available_taskonomy_layers(architecture: str) -> List[str]:
@@ -48,6 +65,10 @@ def available_imagenet_layers(architecture: str) -> List[str]:
         common_layers = available_resnet_layers(architecture)
     elif 'vit_' in architecture:
         common_layers = available_vit_layers(architecture)
+    elif 'vgg' in architecture:
+        common_layers = available_vgg_layers(architecture)
+    elif 'regnet' in architecture:
+        common_layers = available_regnet_layers(architecture)
     else:
         raise RuntimeError('Unsupported imagenet architecture %s' % architecture)
     return [*common_layers, 'fc']

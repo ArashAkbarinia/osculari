@@ -24,7 +24,8 @@ def out_hook(name: str, out_dict: Dict, sequence_first: Optional[bool] = False) 
     return hook
 
 
-def resnet_hooks(model, layers, is_clip=False):
+def resnet_hooks(model: nn.Module, layers: List[str], is_clip: Optional[bool] = False) -> (Dict, Dict):
+    """Creates hooks for the ResNet model."""
     act_dict = dict()
     rf_hooks = dict()
     model_layers = list(model.children())
@@ -53,7 +54,7 @@ def clip_hooks(model: nn.Module, layers: List[str], architecture: str) -> (Dict,
     return act_dict, rf_hooks
 
 
-def vit_hooks(model, layers):
+def vit_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
     act_dict = dict()
     rf_hooks = dict()
     for layer in layers:
