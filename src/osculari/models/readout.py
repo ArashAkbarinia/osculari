@@ -58,13 +58,12 @@ class ReadOutNet(BackboneNet):
     def __init__(self, architecture: str, target_size: int, weights: str, layers: Union[str, List[str]],
                  pooling: Optional[str] = None) -> None:
         super(ReadOutNet, self).__init__(architecture, weights)
-        if layers is list and len(layers) > 1:
-            feature_fun = pretraineds.mix_features
+        if isinstance(layers, list) and len(layers) > 1:
+            self.act_dict, self.out_dim = pretraineds.mix_features(self.backbone, architecture, layers, target_size)
         else:
-            feature_fun = pretraineds.model_features
-            if layers is list:
+            if isinstance(layers, list):
                 layers = layers[0]
-        self.backbone, self.out_dim = feature_fun(self.backbone, architecture, layers, target_size)
+            self.backbone, self.out_dim = pretraineds.model_features(self.backbone, architecture, layers, target_size)
 
         if type(self.out_dim) is int:
             pooling = None
