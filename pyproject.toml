@@ -1,0 +1,34 @@
+[project]
+name = "osculari"
+version = "0.0.1"
+description = "Open source library to explore and interpret pretrained deep neural networks."
+license = {text = "MIT License"}
+authors = [
+    {name="Arash Akbarinia", email="akbarinia.arash@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dynamic = ["dependencies"]
+
+[project.urls]
+"Homepage" = "https://github.com/ArashAkbarinia/osculari"
+"Bug Tracker" = "https://github.com/ArashAkbarinia/osculari/issues"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+  zip-safe = true
+  license-files = ["LICENSE"]
+  include-package-data = false
+
+  [tool.setuptools.dynamic]
+    dependencies = {file = ["requirements.txt"]}
+    version = {attr = "osculari.__version__"}
+    readme = {file = ["README.md"], content-type = "text/markdown"}
