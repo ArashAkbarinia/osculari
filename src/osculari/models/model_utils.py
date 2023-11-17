@@ -24,7 +24,8 @@ def out_hook(name: str, out_dict: Dict, sequence_first: Optional[bool] = False) 
     return hook
 
 
-def resnet_hooks(model: nn.Module, layers: List[str], is_clip: Optional[bool] = False) -> (Dict, Dict):
+def resnet_hooks(model: nn.Module, layers: List[str], is_clip: Optional[bool] = False) -> (
+        Dict, Dict):
     """Creates hooks for the ResNet model."""
     act_dict = dict()
     rf_hooks = dict()
@@ -88,7 +89,8 @@ def is_resnet_backbone(architecture: str) -> bool:
     return 'resnet' in architecture or 'resnext' in architecture or 'taskonomy_' in architecture
 
 
-def generic_features_size(model: nn.Module, target_size: int, dtype: Optional[Type] = None) -> Tuple[int]:
+def generic_features_size(model: nn.Module, target_size: int,
+                          dtype: Optional[Type] = None) -> Tuple[int]:
     """Computed the output size of a network."""
     img = np.random.randint(0, 256, (target_size, target_size, 3)).astype('float32') / 255
     img = torchvis_fun.to_tensor(img).unsqueeze(0)
@@ -114,4 +116,6 @@ def check_input_size(architecture: str, target_size: int) -> None:
     elif architecture in expected_sizes and target_size != expected_sizes[architecture]:
         raise_error = expected_sizes[architecture]
     if raise_error > 0:
-        raise RuntimeError('Network %s expects size %s but got %d' % (architecture, raise_error, target_size))
+        raise RuntimeError(
+            'Network %s expects size %s but got %d' % (architecture, raise_error, target_size)
+        )

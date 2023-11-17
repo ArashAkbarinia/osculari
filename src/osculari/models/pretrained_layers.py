@@ -8,6 +8,10 @@ from torchvision import models as torch_models
 
 from . import model_utils
 
+__all__ = [
+    'available_layers'
+]
+
 
 def _available_resnet_layers(_architecture: str) -> List[str]:
     # TODO better support for more intermediate layers

@@ -10,9 +10,11 @@ import torch.nn as nn
 
 from . import pretrained_models as pretraineds
 
-__aLL__ = [
+__all__ = [
     "diff_paradigm_2afc",
-    "cat_paradigm_2afc"
+    "cat_paradigm_2afc",
+    "ProbeNet",
+    "ActivationLoader"
 ]
 
 

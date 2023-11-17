@@ -106,6 +106,10 @@ _TORCHVISION_IMAGENET = [
     'wide_resnet50_2'
 ]
 
+__all__ = [
+    'available_models'
+]
+
 
 def available_models(flatten: Optional[bool] = False) -> Union[Dict, List]:
     """List of supported models."""
@@ -126,7 +130,9 @@ class ViTLayers(nn.Module):
         block = int(layer.replace('block', '')) + 1
         max_blocks = len(self.parent_model.encoder.layers)
         if block > max_blocks:
-            raise RuntimeError('Layer %s exceeds the total number of %d blocks.' % (layer, max_blocks))
+            raise RuntimeError(
+                'Layer %s exceeds the total number of %d blocks.' % (layer, max_blocks)
+            )
         self.parent_model.encoder.layers = self.parent_model.encoder.layers[:block]
         delattr(self.parent_model, 'heads')
 
@@ -149,7 +155,9 @@ class ViTClipLayers(nn.Module):
         block = int(layer.replace('block', '')) + 1
         max_blocks = len(self.parent_model.transformer.resblocks)
         if block > max_blocks:
-            raise RuntimeError('Layer %s exceeds the total number of %d blocks.' % (layer, max_blocks))
+            raise RuntimeError(
+                'Layer %s exceeds the total number of %d blocks.' % (layer, max_blocks)
+            )
         self.parent_model.transformer.resblocks = self.parent_model.transformer.resblocks[:block]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -205,7 +213,8 @@ def _mobilenet_features(model: nn.Module, layer: str) -> nn.Module:
     return features
 
 
-def _clip_features(model: nn.Module, architecture: str, layer: str, target_size: int) -> (nn.Module, Tuple[int]):
+def _clip_features(model: nn.Module, architecture: str, layer: str, target_size: int) -> (
+        nn.Module, Tuple[int]):
     """Creating a feature extractor from CLIP network."""
     clip_arch = architecture.replace('clip_', '')
     if layer == 'encoder':
@@ -245,7 +254,8 @@ def _resnet_features(model: nn.Module, layer: str, is_clip: Optional[bool] = Fal
     return nn.Sequential(*list(model.children())[:l_ind])
 
 
-def model_features(model: nn.Module, architecture: str, layer: str, target_size: int) -> (nn.Module, Tuple[int]):
+def model_features(model: nn.Module, architecture: str, layer: str, target_size: int) -> (
+        nn.Module, Tuple[int]):
     """Return features extracted from one layer."""
     if layer not in pretrained_layers.available_layers(architecture):
         raise RuntimeError(
@@ -279,9 +289,9 @@ def mix_features(model: nn.Module, architecture: str, layers: List[str], target_
     act_dict, _ = model_utils.register_model_hooks(model, architecture, layers)
     out_dims = []
     for layer in layers:
+        model_instance = get_pretrained_model(architecture, 'none', target_size)
         _, out_dim = model_features(
-            get_image_encoder(architecture, get_pretrained_model(architecture, 'none')),
-            architecture, layer, target_size
+            get_image_encoder(architecture, model_instance), architecture, layer, target_size
         )
         out_dims.append(out_dim)
     return act_dict, out_dims
