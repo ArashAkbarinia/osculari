@@ -2,3 +2,4 @@ numpy
 torch
 torchvision
 clip-openai
+opencv-python
