@@ -3,6 +3,7 @@ A simple generic dataset of geometrical shapes in foreground.
 """
 
 import numpy as np
+import numpy.typing as npt
 import math
 import random
 from typing import Optional, List, Tuple, Sequence, Callable, Any, Union
@@ -37,8 +38,8 @@ def generate_random_polygon(num_sides: int) -> List[Tuple[float, float]]:
     return vertices
 
 
-def cv2_filled_polygons(img: np.ndarray, pts: Sequence, color: Sequence[float],
-                        thickness: Optional[int] = 1) -> np.ndarray:
+def cv2_filled_polygons(img: npt.NDArray, pts: Sequence, color: Sequence[float],
+                        thickness: Optional[int] = 1) -> npt.NDArray:
     """Drawing a filled polygon."""
     img = cv2.polylines(img, pts=pts, color=color, thickness=abs(thickness), isClosed=True)
     if thickness < 0:
@@ -46,7 +47,7 @@ def cv2_filled_polygons(img: np.ndarray, pts: Sequence, color: Sequence[float],
     return img
 
 
-def fg_shape_mask(img_size: int) -> np.ndarray[bool]:
+def fg_shape_mask(img_size: int) -> npt.NDArray[bool]:
     """Generating a geometrical shape in the foreground."""
     img = np.zeros((img_size, img_size), dtype=np.uint8)
     num_sides = np.random.randint(3, 16)
@@ -83,7 +84,7 @@ class ShapeAppearanceDataset(TorchDataset):
     def __len__(self) -> int:
         return self.num_samples
 
-    def make_fg_masks(self) -> List[np.ndarray]:
+    def make_fg_masks(self) -> List[npt.NDArray[bool]]:
         """Generating the foreground images."""
         if self.unique_fg_shape:
             fg_mask = fg_shape_mask(self.img_size)
@@ -91,7 +92,7 @@ class ShapeAppearanceDataset(TorchDataset):
         else:
             return [fg_shape_mask(self.img_size) for _ in range(self.num_imgs)]
 
-    def make_bg_imgs(self) -> List[np.ndarray]:
+    def make_bg_imgs(self) -> List[npt.NDArray]:
         """Generating the background images."""
         if self.unique_bg:
             bg_img = dataset_utils.background_img(self.bg, self.img_size)
@@ -100,7 +101,7 @@ class ShapeAppearanceDataset(TorchDataset):
             return [dataset_utils.background_img(
                 self.bg, self.img_size) for _ in range(self.num_imgs)]
 
-    def __getitem__(self, _idx: int) -> (List[Union[torch.Tensor, np.ndarray]], Any):
+    def __getitem__(self, _idx: int) -> (List[Union[torch.Tensor, npt.NDArray]], Any):
         # our routine doesn't need the idx, which is the sample number
         fgs = self.make_fg_masks()  # foregrounds
         bgs = self.make_bg_imgs()  # backgrounds

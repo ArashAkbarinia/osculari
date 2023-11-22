@@ -3,6 +3,7 @@ Set of utility functions in generating datasets.
 """
 
 import numpy as np
+import numpy.typing as npt
 import random
 from typing import Any, Union, Tuple, Optional, Sequence, List
 
@@ -22,7 +23,7 @@ def _unique_colours(num_colours: int, channels: Optional[int] = 3,
 
 
 def _patch_img(img_size: Tuple[int, int], num_colours: int, num_patches: int,
-               channels: Optional[int] = 3) -> np.ndarray:
+               channels: Optional[int] = 3) -> npt.NDArray:
     """Create an image of patched colours, similar to Mondrian images."""
     img = np.zeros((*img_size, channels), dtype='uint8')
     colours = _unique_colours(num_colours, channels=channels)
@@ -48,14 +49,14 @@ def random_colour(channels: Optional[int] = 3) -> Sequence:
     return [np.random.randint(0, 256) for _ in range(channels)]
 
 
-def michelson_contrast(img: np.ndarray, contrast: float) -> np.ndarray:
+def michelson_contrast(img: npt.NDArray, contrast: float) -> npt.NDArray:
     """Adjusting the contrast of an image."""
     assert 0 <= contrast <= 1
     return ((1 - contrast) / 2.0 + np.multiply(img, contrast)).astype(img.dtype)
 
 
 def _uniform_img(img_size: Tuple[int, int], value: Union[Sequence, int],
-                 channels: Optional[int] = 3) -> np.ndarray:
+                 channels: Optional[int] = 3) -> npt.NDArray:
     """Creating an image with uniform colours."""
     if type(value) in (list, tuple, np.ndarray):
         value = np.array(value)
@@ -67,12 +68,12 @@ def _uniform_img(img_size: Tuple[int, int], value: Union[Sequence, int],
     return np.zeros((*img_size, channels), dtype='uint8') + value
 
 
-def _repeat_channels(img: np.ndarray, channels: int) -> np.ndarray:
+def _repeat_channels(img: npt.NDArray, channels: int) -> npt.NDArray:
     """Adding channel dimension and repeating the image."""
     return np.repeat(img[:, :, np.newaxis], channels, axis=2)
 
 
-def background_img(bg_type: Any, bg_size: Union[int, Tuple], im2double=True) -> np.ndarray:
+def background_img(bg_type: Any, bg_size: Union[int, Tuple], im2double=True) -> npt.NDArray:
     """Creating a background image."""
     if type(bg_size) not in [tuple, list]:
         bg_size = (bg_size, bg_size)
