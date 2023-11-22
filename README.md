@@ -1,4 +1,10 @@
 # osculari
+[![Python version](https://img.shields.io/pypi/pyversions/osculari)](https://pypi.org/project/osculari/)
+[![Project Status](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
+[![Documentation Status](https://readthedocs.org/projects/osculari/badge/?version=latest)](https://osculari.readthedocs.io/en/latest/?badge=latest)
+[![PyPi Status](https://img.shields.io/pypi/v/osculari.svg)](https://pypi.org/project/osculari/)
+[![Licence](https://img.shields.io/pypi/l/osculari.svg)](LICENSE)
+
 
 Exploring and interpreting pretrained deep neural networks.
 
@@ -53,7 +59,7 @@ Let's create a linear classifier to perform a binary-classification 2AFC
 ```osculari.diff_paradigm_2afc``` or  ```osculari.cat_paradigm_2afc```.
 
 Let's use ```ResNet50``` as our pretrained network and extract feature from
-the layer ```area0```.
+the layer ```block0```.
 
 ``` python
 
@@ -87,7 +93,7 @@ The variable ```readout_kwargs``` specifies the details of the *pretrained* netw
 - `layers` The read-out (cut-off) layer. In this example, we extract features from ```block0```. All
   supported layers for an architecture can be obtained by calling `available_layers` function.
 
-The variable ```classifier_lwargs``` specifies the details of the *linear classifier*:
+The variable ```classifier_kwargs``` specifies the details of the *linear classifier*:
 
 - ```pooling``` specifies whether to perform pooling over extracted features (without any new
   weights to learn). This is useful to reduce the dimensionality of the extracted features.
