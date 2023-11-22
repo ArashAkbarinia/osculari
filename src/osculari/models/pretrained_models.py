@@ -357,3 +357,22 @@ def get_image_encoder(network_name: str, model: nn.Module) -> nn.Module:
     elif network_name in _TORCHVISION_SEGMENTATION:
         return model.backbone
     return model
+
+
+def preprocess_mean_std(network_name: str) -> (Tuple[float], Tuple[float]):
+    """Returning the mean and std used in pretrained preprocessing."""
+    if 'clip_' in network_name:
+        mean = (0.48145466, 0.4578275, 0.40821073)
+        std = (0.26862954, 0.26130258, 0.27577711)
+    elif 'taskonomy_' in network_name:
+        mean = (0.5, 0.5, 0.5)
+        std = (0.5, 0.5, 0.5)
+    elif network_name in [
+        *torch_models.list_models(module=torch_models.segmentation),
+        *torch_models.list_models(module=torch_models)
+    ]:
+        mean = (0.485, 0.456, 0.406)
+        std = (0.229, 0.224, 0.225)
+    else:
+        raise RuntimeError('The preprocess for architecture %s is unknown.' % network_name)
+    return mean, std

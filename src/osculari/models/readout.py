@@ -27,6 +27,7 @@ class BackboneNet(nn.Module):
         self.architecture = architecture
         self.backbone = pretraineds.get_image_encoder(architecture, model)
         self.in_type = self.get_net_input_type(self.backbone)
+        self.preprocess = pretraineds.preprocess_mean_std(self.architecture)
 
     def get_net_input_type(self, model: nn.Module) -> Type:
         """Returning the network's input image type."""
