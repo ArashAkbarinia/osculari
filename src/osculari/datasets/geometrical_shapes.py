@@ -5,10 +5,17 @@ A simple generic dataset of geometrical shapes in foreground.
 import numpy as np
 import math
 import random
-from typing import Optional, List, Tuple, Sequence, Callable
+from typing import Optional, List, Tuple, Sequence, Callable, Any, Union
 
 import cv2
+import torch
 from torch.utils.data import Dataset as TorchDataset
+
+from . import dataset_utils
+
+__all__ = [
+    'ShapeAppearanceDataset'
+]
 
 
 def generate_random_polygon(num_sides: int) -> List[Tuple[float, float]]:
@@ -30,8 +37,8 @@ def generate_random_polygon(num_sides: int) -> List[Tuple[float, float]]:
     return vertices
 
 
-def cv2_filled_polygons(img: np.array, pts: Sequence, color: Sequence[float],
-                        thickness: Optional[int] = 1) -> np.array:
+def cv2_filled_polygons(img: np.ndarray, pts: Sequence, color: Sequence[float],
+                        thickness: Optional[int] = 1) -> np.ndarray:
     """Drawing a filled polygon."""
     img = cv2.polylines(img, pts=pts, color=color, thickness=abs(thickness), isClosed=True)
     if thickness < 0:
@@ -39,7 +46,7 @@ def cv2_filled_polygons(img: np.array, pts: Sequence, color: Sequence[float],
     return img
 
 
-def fg_shape_mask(img_size: int) -> np.array:
+def fg_shape_mask(img_size: int) -> np.ndarray[bool]:
     """Generating a geometrical shape in the foreground."""
     img = np.zeros((img_size, img_size), dtype=np.uint8)
     num_sides = np.random.randint(3, 16)
@@ -53,27 +60,51 @@ def fg_shape_mask(img_size: int) -> np.array:
     pts += centre_shift
     pts = pts.astype(int)
     img = cv2_filled_polygons(img, pts=[pts], color=[255], thickness=-1)
-    return img == 255
+    return np.equal(img, 255)
 
 
-class ShapeDataset(TorchDataset):
-    """PyTorch dataset of geometrical shapes."""
+class ShapeAppearanceDataset(TorchDataset):
+    """A dataset of geometrical shapes whose appearance properties can be altered."""
 
-    def __init__(self, num_samples: int, num_imgs: int, img_size: int,
+    def __init__(self, num_samples: int, num_imgs: int, img_size: int, background: Any,
+                 merge_fg_bg: Callable,
+                 unique_fg_shape: Optional[bool] = True, unique_bg: Optional[bool] = True,
                  transform: Optional[Callable] = None) -> None:
-        super(ShapeDataset, self).__init__()
+        super(ShapeAppearanceDataset, self).__init__()
         self.num_samples = num_samples
         self.num_imgs = num_imgs
         self.img_size = img_size
+        self.merge_fg_bg = merge_fg_bg
+        self.bg = background
+        self.unique_fg_shape = unique_fg_shape
+        self.unique_bg = unique_bg
         self.transform = transform
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.num_samples
 
-    def __getitem__(self, _idx):
-        # our routine doesn't need the idx, which is the sample number
-        fgs = [fg_shape_mask(self.img_size) for _ in range(self.num_imgs)]
+    def make_fg_masks(self) -> List[np.ndarray]:
+        """Generating the foreground images."""
+        if self.unique_fg_shape:
+            fg_mask = fg_shape_mask(self.img_size)
+            return [fg_mask.copy() for _ in range(self.num_imgs)]
+        else:
+            return [fg_shape_mask(self.img_size) for _ in range(self.num_imgs)]
 
+    def make_bg_imgs(self) -> List[np.ndarray]:
+        """Generating the background images."""
+        if self.unique_bg:
+            bg_img = dataset_utils.background_img(self.bg, self.img_size)
+            return [bg_img.copy() for _ in range(self.num_imgs)]
+        else:
+            return [dataset_utils.background_img(
+                self.bg, self.img_size) for _ in range(self.num_imgs)]
+
+    def __getitem__(self, _idx: int) -> (List[Union[torch.Tensor, np.ndarray]], Any):
+        # our routine doesn't need the idx, which is the sample number
+        fgs = self.make_fg_masks()  # foregrounds
+        bgs = self.make_bg_imgs()  # backgrounds
+        imgs, gt = self.merge_fg_bg(fgs, bgs)
         if self.transform:
-            fgs = [self.transform(fg) for fg in fgs]
-        return fgs
+            imgs = [self.transform(img) for img in imgs]
+        return *imgs, gt
