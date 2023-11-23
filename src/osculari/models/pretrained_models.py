@@ -8,6 +8,7 @@ from itertools import chain
 
 import torch
 import torch.nn as nn
+from torch.utils import model_zoo
 
 from torchvision import models as torch_models
 import clip
@@ -319,7 +320,7 @@ def _load_weights(model: nn.Module, weights: str) -> nn.Module:
     if weights in ['none', None]:
         pass
     elif 'https://' in weights or 'http://' in weights:
-        checkpoint = torch.utils.model_zoo.load_url(weights, model_dir=None, progress=True)
+        checkpoint = model_zoo.load_url(weights, model_dir=None, progress=True)
         model.load_state_dict(checkpoint['state_dict'])
     elif os.path.exists(weights):
         checkpoint = torch.load(weights, map_location='cpu')
