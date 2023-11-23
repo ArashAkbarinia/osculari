@@ -67,13 +67,13 @@ def fg_shape_mask(img_size: int) -> npt.NDArray[bool]:
 class ShapeAppearanceDataset(TorchDataset):
     """A dataset of geometrical shapes whose appearance properties can be altered."""
 
-    def __init__(self, num_samples: int, num_imgs: int, img_size: int, background: Any,
+    def __init__(self, num_samples: int, num_images: int, img_size: int, background: Any,
                  merge_fg_bg: Callable,
                  unique_fg_shape: Optional[bool] = True, unique_bg: Optional[bool] = True,
                  transform: Optional[Callable] = None) -> None:
         super(ShapeAppearanceDataset, self).__init__()
         self.num_samples = num_samples
-        self.num_imgs = num_imgs
+        self.num_images = num_images
         self.img_size = img_size
         self.merge_fg_bg = merge_fg_bg
         self.bg = background
@@ -88,24 +88,24 @@ class ShapeAppearanceDataset(TorchDataset):
         """Generating the foreground images."""
         if self.unique_fg_shape:
             fg_mask = fg_shape_mask(self.img_size)
-            return [fg_mask.copy() for _ in range(self.num_imgs)]
+            return [fg_mask.copy() for _ in range(self.num_images)]
         else:
-            return [fg_shape_mask(self.img_size) for _ in range(self.num_imgs)]
+            return [fg_shape_mask(self.img_size) for _ in range(self.num_images)]
 
-    def make_bg_imgs(self) -> List[npt.NDArray]:
+    def make_bg_images(self) -> List[npt.NDArray]:
         """Generating the background images."""
         if self.unique_bg:
             bg_img = dataset_utils.background_img(self.bg, self.img_size)
-            return [bg_img.copy() for _ in range(self.num_imgs)]
+            return [bg_img.copy() for _ in range(self.num_images)]
         else:
             return [dataset_utils.background_img(
-                self.bg, self.img_size) for _ in range(self.num_imgs)]
+                self.bg, self.img_size) for _ in range(self.num_images)]
 
     def __getitem__(self, _idx: int) -> (List[Union[torch.Tensor, npt.NDArray]], Any):
         # our routine doesn't need the idx, which is the sample number
         fgs = self.make_fg_masks()  # foregrounds
-        bgs = self.make_bg_imgs()  # backgrounds
-        imgs, gt = self.merge_fg_bg(fgs, bgs)
+        bgs = self.make_bg_images()  # backgrounds
+        images, gt = self.merge_fg_bg(fgs, bgs)
         if self.transform:
-            imgs = [self.transform(img) for img in imgs]
-        return *imgs, gt
+            images = [self.transform(img) for img in images]
+        return *images, gt
