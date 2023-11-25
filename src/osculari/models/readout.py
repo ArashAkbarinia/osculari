@@ -3,7 +3,8 @@ A set of wrapper classes to access pretrained networks for different purposes.
 """
 
 import numpy as np
-from typing import Optional, List, Union, Type, Any, Literal
+from typing import Optional, List, Union, Type, Any, Literal, Dict
+import collections
 
 import torch
 import torch.nn as nn
@@ -46,6 +47,11 @@ class BackboneNet(nn.Module):
         """Extracting vectorised features from backbone."""
         x = self.extract_features(x)
         return torch.flatten(x, start_dim=1)
+
+    def freeze_backbone(self) -> None:
+        """Freezing the weights of the backbone network."""
+        for params in self.backbone.parameters():
+            params.requires_grad = False
 
 
 class ActivationLoader(BackboneNet):
@@ -131,6 +137,11 @@ class ProbeNet(ReadOutNet):
     def __init__(self, input_nodes: int, num_classes: int, probe_layer: Optional[str] = 'nn',
                  **kwargs) -> None:
         super(ProbeNet, self).__init__(**kwargs)
+        self.probe_net_params = {
+            'input_nodes': input_nodes,
+            'num_classes': num_classes,
+            **kwargs
+        }
         self.input_nodes = input_nodes
         self.feature_units = np.prod(self.out_dim)
         if probe_layer == 'nn':
@@ -148,9 +159,23 @@ class ProbeNet(ReadOutNet):
     def do_probe_layer(self, x: torch.Tensor) -> torch.Tensor:
         return x if self.fc is None else self.fc(x)
 
+    def get_params_to_save(self) -> Dict:
+        # TODO: better handling whether bn layers are altered
+        altered_state_dict = collections.OrderedDict()
+        for key, _ in self.named_buffers():
+            altered_state_dict[key] = self.state_dict()[key]
+        if self.fc is not None:
+            for key in ['fc.weight', 'fc.bias']:
+                altered_state_dict[key] = self.state_dict()[key]
+        params = {
+            'pretrained': self.probe_net_params,
+            'state_dict': altered_state_dict
+        }
+        return params
+
 
 class Classifier2AFC(ProbeNet):
-    def __init__(self, merge_paradigm: Literal['diff', 'cat'], **kwargs: Any):
+    def __init__(self, merge_paradigm: Literal['diff', 'cat'], **kwargs: Any) -> None:
         input_nodes = 2 if merge_paradigm == 'cat' else 1
         super(Classifier2AFC, self).__init__(input_nodes=input_nodes, num_classes=2, **kwargs)
         self.merge_paradigm = merge_paradigm
@@ -166,9 +191,9 @@ class Classifier2AFC(ProbeNet):
         return nn.functional.cross_entropy(output, target)
 
 
-def diff_paradigm_2afc(**kwargs: Any):
+def diff_paradigm_2afc(**kwargs: Any) -> Classifier2AFC:
     return Classifier2AFC(merge_paradigm='diff', **kwargs)
 
 
-def cat_paradigm_2afc(**kwargs: Any):
+def cat_paradigm_2afc(**kwargs: Any) -> Classifier2AFC:
     return Classifier2AFC(merge_paradigm='cat', **kwargs)
