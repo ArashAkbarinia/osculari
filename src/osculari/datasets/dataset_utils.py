@@ -68,7 +68,7 @@ def _uniform_img(img_size: Tuple[int, int], value: Union[Sequence, int],
     return np.zeros((*img_size, channels), dtype='uint8') + value
 
 
-def _repeat_channels(img: npt.NDArray, channels: int) -> npt.NDArray:
+def repeat_channels(img: npt.NDArray, channels: int) -> npt.NDArray:
     """Adding channel dimension and repeating the image."""
     return np.repeat(img[:, :, np.newaxis], channels, axis=2)
 
@@ -83,7 +83,7 @@ def background_img(bg_type: Any, bg_size: Union[int, Tuple], im2double=True) -> 
         elif bg_type == 'uniform_colour':
             bg_img = _uniform_img(bg_size, random_colour())
         elif bg_type == 'random_achromatic':
-            bg_img = _repeat_channels(np.random.randint(0, 256, bg_size, dtype='uint8'), 3)
+            bg_img = repeat_channels(np.random.randint(0, 256, bg_size, dtype='uint8'), 3)
         elif bg_type == 'random_colour':
             bg_img = np.random.randint(0, 256, (*bg_size, 3), dtype='uint8')
         elif 'patch_' in bg_type:
