@@ -11,6 +11,10 @@ from torch.utils.data import Dataset as TorchDataset
 
 from . import dataset_utils
 
+__all__ = [
+    'GratingsDataset'
+]
+
 
 def sinusoid_grating(img_size: int, amplitude: float, theta: float, phase: float,
                      spatial_frequency: int) -> npt.NDArray[float]:
@@ -41,6 +45,7 @@ class GratingsDataset(TorchDataset):
     def __init__(self, img_size: int, spatial_frequencies: Optional[Sequence[int]] = None,
                  thetas: Optional[Sequence[int]] = None, gaussian_sigma: Optional[float] = None,
                  transform: Optional[Callable] = None) -> None:
+        super(GratingsDataset, self).__init__()
         self.img_size = img_size
         self.transform = transform
         self.sfs = [
