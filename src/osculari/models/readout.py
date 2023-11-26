@@ -2,12 +2,14 @@
 A set of wrapper classes to access pretrained networks for different purposes.
 """
 
+from __future__ import annotations
 import numpy as np
 from typing import Optional, List, Union, Type, Any, Literal, Dict
 import collections
 
 import torch
 import torch.nn as nn
+import torchvision.transforms as torch_transforms
 
 from . import pretrained_models as pretraineds
 
@@ -28,7 +30,7 @@ class BackboneNet(nn.Module):
         self.architecture = architecture
         self.backbone = pretraineds.get_image_encoder(architecture, model)
         self.in_type = self.get_net_input_type(self.backbone)
-        self.preprocess = pretraineds.preprocess_mean_std(self.architecture)
+        self.normalise_mean_std = pretraineds.preprocess_mean_std(self.architecture)
 
     def get_net_input_type(self, model: nn.Module) -> Type:
         """Returning the network's input image type."""
@@ -52,6 +54,16 @@ class BackboneNet(nn.Module):
         """Freezing the weights of the backbone network."""
         for params in self.backbone.parameters():
             params.requires_grad = False
+
+    def preprocess_transform(self) -> torch_transforms.Compose:
+        """Required transformations on input signal."""
+        mean, std = self.normalise_mean_std
+        # the list of transformation functions
+        transform = torch_transforms.Compose([
+            torch_transforms.ToTensor(),
+            torch_transforms.Normalize(mean=mean, std=std)
+        ])
+        return transform
 
 
 class ActivationLoader(BackboneNet):
@@ -138,9 +150,12 @@ class ProbeNet(ReadOutNet):
                  **kwargs) -> None:
         super(ProbeNet, self).__init__(**kwargs)
         self.probe_net_params = {
-            'input_nodes': input_nodes,
-            'num_classes': num_classes,
-            **kwargs
+            'probe': {
+                'input_nodes': input_nodes,
+                'num_classes': num_classes,
+                'probe_layer': probe_layer
+            },
+            'pretrained': kwargs
         }
         self.input_nodes = input_nodes
         self.feature_units = np.prod(self.out_dim)
@@ -159,7 +174,7 @@ class ProbeNet(ReadOutNet):
     def do_probe_layer(self, x: torch.Tensor) -> torch.Tensor:
         return x if self.fc is None else self.fc(x)
 
-    def get_params_to_save(self) -> Dict:
+    def serialisation_params(self) -> Dict:
         # TODO: better handling whether bn layers are altered
         altered_state_dict = collections.OrderedDict()
         for key, _ in self.named_buffers():
@@ -168,7 +183,7 @@ class ProbeNet(ReadOutNet):
             for key in ['fc.weight', 'fc.bias']:
                 altered_state_dict[key] = self.state_dict()[key]
         params = {
-            'pretrained': self.probe_net_params,
+            'architecture': self.probe_net_params,
             'state_dict': altered_state_dict
         }
         return params
@@ -186,6 +201,11 @@ class Classifier2AFC(ProbeNet):
         x = torch.cat([x0, x1], dim=1) if self.merge_paradigm == 'cat' else torch.abs(x0 - x1)
         return self.do_probe_layer(x)
 
+    def serialisation_params(self) -> Dict:
+        params = super().serialisation_params()
+        params['architecture']['classifier'] = {'merge_paradigm': self.merge_paradigm}
+        return params
+
     @staticmethod
     def loss_function(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         return nn.functional.cross_entropy(output, target)
@@ -197,3 +217,12 @@ def diff_paradigm_2afc(**kwargs: Any) -> Classifier2AFC:
 
 def cat_paradigm_2afc(**kwargs: Any) -> Classifier2AFC:
     return Classifier2AFC(merge_paradigm='cat', **kwargs)
+
+
+def load_paradigm_2afc(checkpoint: Any) -> Classifier2AFC:
+    if type(checkpoint) is str:
+        checkpoint = torch.load(checkpoint, map_location='cpu')['network']
+    arch_params = checkpoint['architecture']
+    network = Classifier2AFC(**arch_params['pretrained'], **arch_params['classifier'])
+    network.load_state_dict(checkpoint['state_dict'], strict=False)
+    return network

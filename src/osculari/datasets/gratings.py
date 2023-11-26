@@ -52,28 +52,24 @@ class GratingsDataset(TorchDataset):
     def __len__(self) -> int:
         return len(self.thetas) * len(self.sfs)
 
-    def make_grating(self, idx: int, amplitude: float) -> npt.NDArray[float]:
+    def make_grating(self, idx: int, amplitude: float, channels=3) -> npt.NDArray[float]:
         theta_ind, sf_ind = np.unravel_index(idx, (len(self.thetas), len(self.sfs)))
         theta = self.thetas[theta_ind]
         sf = self.sfs[sf_ind]
         phase = 0
-        return sinusoid_grating(self.img_size, amplitude, theta, phase, sf)
-
-    def apply_gaussian(self, stimuli: npt.NDArray[float]) -> npt.NDArray[float]:
+        stimuli = sinusoid_grating(self.img_size, amplitude, theta, phase, sf)
+        # multiply by a Gaussian
         if self.gaussian_sigma is not None:
             gauss_img = gaussian_img(self.img_size, self.gaussian_sigma)
             stimuli *= gauss_img
+        # bringing the image in the range of 0-1
+        stimuli = (stimuli + 1) / 2
+        # converting it to N channels
+        stimuli = dataset_utils.repeat_channels(stimuli, channels=channels)
         return stimuli
 
     def __getitem__(self, idx: int) -> Union[torch.Tensor, npt.NDArray]:
         stimuli = self.make_grating(idx, 1.0)
-        # multiply by a Gaussian
-        stimuli = self.apply_gaussian(stimuli)
-        # bringing the image in the range of 0-1
-        stimuli = (stimuli + 1) / 2
-        # converting it to 3 channel
-        stimuli = dataset_utils.repeat_channels(stimuli, 3)
-
         if self.transform:
             stimuli = self.transform(stimuli)
         return stimuli
