@@ -14,7 +14,7 @@ for different techniques to explore and interpret the internal presentation of d
       from `PyTorch's official website <https://pytorch.org/vision/stable/models.html>`_.
     * All OpenAI `CLIP <(https://github.com/openai/CLIP>`_ language-vision models.
     * All `Taskonomy <http://taskonomy.stanford.edu/>`_ networks.
-- Managing both convolution and tranformer architectures.
+- Managing both convolution and transformer architectures.
 - Allowing to readout the network at any given depth.
 - Training a linear classifier on top of the extract features from any network/layer.
 - Supporting 2AFC and 4AFC paradigms.

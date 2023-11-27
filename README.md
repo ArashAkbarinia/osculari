@@ -1,4 +1,3 @@
-# osculari
 [![Python version](https://img.shields.io/pypi/pyversions/osculari)](https://pypi.org/project/osculari/)
 [![Project Status](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![Documentation Status](https://readthedocs.org/projects/osculari/badge/?version=latest)](https://osculari.readthedocs.io/en/latest/?badge=latest)
@@ -10,7 +9,7 @@ Exploring and interpreting pretrained deep neural networks.
 
 ## Overview
 
-The *osculari* package provides an easy interface for different techniques to explore and interpret
+The `osculari` package provides an easy interface for different techniques to explore and interpret
 the internal presentation of deep neural networks.
 
 - Support for following pretrained models:
@@ -18,7 +17,7 @@ the internal presentation of deep neural networks.
       from [PyTorch's official website](https://pytorch.org/vision/stable/models.html).
     * All OpenAI [CLIP](https://github.com/openai/CLIP) language-vision models.
     * All [Taskonomy](http://taskonomy.stanford.edu/) networks.
-- Managing both convolution and tranformer architectures.
+- Managing both convolution and transformer architectures.
 - Allowing to readout the network at any given depth.
 - Training a linear classifier on top of the extract features from any network/layer.
 - Supporting 2AFC and 4AFC paradigms.
