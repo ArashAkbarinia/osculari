@@ -17,9 +17,14 @@ __all__ = [
 ]
 
 
-def staircase(model: nn.Module, test_fun: Callable, dataset_fun: Callable, device: torch.device,
-              low_val: float, high_val: float, max_attempts: Optional[int] = 20) -> npt.NDArray:
+def staircase(model: nn.Module, test_fun: Callable, dataset_fun: Callable, low_val: float,
+              high_val: float, device: Optional[torch.device] = None,
+              max_attempts: Optional[int] = 20) -> npt.NDArray:
     """Computing the psychometric function following staircase procedure."""
+    # device
+    if device is None:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     mid_val = (low_val + high_val) / 2
     results = []
     attempt_num = 0
