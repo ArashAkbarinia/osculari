@@ -7,14 +7,18 @@ import numpy.typing as npt
 from typing import Callable, Optional
 
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader
 
 from . import paradigm_utils
 
+__all__ = [
+    'staircase'
+]
 
-def staircase(model: torch.nn.Module, test_fun: Callable, dataset_fun: Callable,
-              device: torch.device, low_val: float, high_val: float,
-              max_attempts: Optional[int] = 20) -> npt.NDArray:
+
+def staircase(model: nn.Module, test_fun: Callable, dataset_fun: Callable, device: torch.device,
+              low_val: float, high_val: float, max_attempts: Optional[int] = 20) -> npt.NDArray:
     """Computing the psychometric function following staircase procedure."""
     mid_val = (low_val + high_val) / 2
     results = []

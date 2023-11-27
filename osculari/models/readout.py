@@ -16,6 +16,7 @@ from . import pretrained_models as pretraineds
 __all__ = [
     "diff_paradigm_2afc",
     "cat_paradigm_2afc",
+    "load_paradigm_2afc",
     "ProbeNet",
     "ActivationLoader"
 ]

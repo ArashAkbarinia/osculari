@@ -27,7 +27,9 @@ for different techniques to explore and interpret the internal presentation of d
    :hidden:
 
 .. toctree::
+   osculari.datasets
    osculari.models
+   osculari.paradigms
    :maxdepth: 2
    :caption: API Reference:
    :hidden:

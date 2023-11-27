@@ -4,7 +4,7 @@ osculari.models
 Submodules
 ----------
 
-osculari.models.model\_utils module
+osculari.models.model\_utils
 -----------------------------------
 
 .. automodule:: osculari.models.model_utils
@@ -12,7 +12,7 @@ osculari.models.model\_utils module
    :undoc-members:
    :show-inheritance:
 
-osculari.models.pretrained\_layers module
+osculari.models.pretrained\_layers
 -----------------------------------------
 
 .. automodule:: osculari.models.pretrained_layers
@@ -20,7 +20,7 @@ osculari.models.pretrained\_layers module
    :undoc-members:
    :show-inheritance:
 
-osculari.models.pretrained\_models module
+osculari.models.pretrained\_models
 -----------------------------------------
 
 .. automodule:: osculari.models.pretrained_models
@@ -28,7 +28,7 @@ osculari.models.pretrained\_models module
    :undoc-members:
    :show-inheritance:
 
-osculari.models.readout module
+osculari.models.readout
 ------------------------------
 
 .. automodule:: osculari.models.readout

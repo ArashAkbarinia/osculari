@@ -1,3 +1,7 @@
+from . import datasets
+from . import models
+from . import paradigms
+
 from .models.pretrained_models import available_models
 
 # Version variable

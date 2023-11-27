@@ -11,6 +11,11 @@ import torchvision.transforms.functional as torchvis_fun
 
 from . import pretrained_layers
 
+__all__ = [
+    'generic_features_size',
+    'check_input_size'
+]
+
 
 def out_hook(name: str, out_dict: Dict, sequence_first: Optional[bool] = False) -> Callable:
     """Creating callable hook function"""
