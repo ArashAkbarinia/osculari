@@ -17,7 +17,6 @@ def staircase(model: torch.nn.Module, test_fun: Callable, dataset_fun: Callable,
               max_attempts: Optional[int] = 20) -> npt.NDArray:
     """Computing the psychometric function following staircase procedure."""
     mid_val = (low_val + high_val) / 2
-
     results = []
     attempt_num = 0
     while True:
@@ -28,7 +27,7 @@ def staircase(model: torch.nn.Module, test_fun: Callable, dataset_fun: Callable,
         )
         # making the test
         test_log = test_fun(model, db_loader, device)
-        accuracy = np.mean(test_log['accuracies'])
+        accuracy = np.mean(test_log['accuracy'])
         if 1 < accuracy < 0:
             raise RuntimeError('Accuracy for staircase procedure must be between 0 and 1.')
         results.append(np.array([mid_val, accuracy]))
