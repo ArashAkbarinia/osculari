@@ -33,6 +33,7 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.doctest',
     'sphinx.ext.napoleon',
+    'myst_nb'
 ]
 
 templates_path = ['_templates']
@@ -46,3 +47,5 @@ html_static_path = ['_static']
 
 html_domain_indices = True
 html_baseurl = "https://osculari.readthedocs.io"
+
+nb_execution_mode = "off"

@@ -21,7 +21,8 @@ for different techniques to explore and interpret the internal presentation of d
 
 .. toctree::
    installation
-   example
+   usage
+   examples
    :maxdepth: 2
    :caption: Get started:
    :hidden:
