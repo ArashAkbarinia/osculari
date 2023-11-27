@@ -214,7 +214,7 @@ def _mobilenet_features(model: nn.Module, layer: str) -> nn.Module:
     return features
 
 
-def _clip_features(model: nn.Module, architecture: str, layer: str, target_size: int) -> (
+def _clip_features(model: nn.Module, architecture: str, layer: str, img_size: int) -> (
         nn.Module, Tuple[int]):
     """Creating a feature extractor from CLIP network."""
     clip_arch = architecture.replace('clip_', '')
@@ -233,7 +233,7 @@ def _clip_features(model: nn.Module, architecture: str, layer: str, target_size:
             features = _resnet_features(model, layer, is_clip=True)
         else:
             features = ViTClipLayers(model, layer)
-        out_dim = model_utils.generic_features_size(features, target_size, model.conv1.weight.dtype)
+        out_dim = model_utils.generic_features_size(features, img_size, model.conv1.weight.dtype)
     return features, out_dim
 
 
@@ -255,7 +255,7 @@ def _resnet_features(model: nn.Module, layer: str, is_clip: Optional[bool] = Fal
     return nn.Sequential(*list(model.children())[:l_ind])
 
 
-def model_features(model: nn.Module, architecture: str, layer: str, target_size: int) -> (
+def model_features(model: nn.Module, architecture: str, layer: str, img_size: int) -> (
         nn.Module, Tuple[int]):
     """Return features extracted from one layer."""
     if layer not in pretrained_layers.available_layers(architecture):
@@ -266,7 +266,7 @@ def model_features(model: nn.Module, architecture: str, layer: str, target_size:
     if architecture in _TORCHVISION_IMAGENET and layer == 'fc':
         features, out_dim = model, 1000
     elif 'clip' in architecture:
-        features, out_dim = _clip_features(model, architecture, layer, target_size)
+        features, out_dim = _clip_features(model, architecture, layer, img_size)
     else:
         if model_utils.is_resnet_backbone(architecture):
             features = _resnet_features(model, layer)
@@ -280,19 +280,19 @@ def model_features(model: nn.Module, architecture: str, layer: str, target_size:
             features = _vit_features(model, layer)
         else:
             raise RuntimeError('Unsupported network %s' % architecture)
-        out_dim = model_utils.generic_features_size(features, target_size)
+        out_dim = model_utils.generic_features_size(features, img_size)
     return features, out_dim
 
 
-def mix_features(model: nn.Module, architecture: str, layers: List[str], target_size: int) -> (
+def mix_features(model: nn.Module, architecture: str, layers: List[str], img_size: int) -> (
         Dict, List[int]):
     """Return features extracted from a set of layers."""
     act_dict, _ = model_utils.register_model_hooks(model, architecture, layers)
     out_dims = []
     for layer in layers:
-        model_instance = get_pretrained_model(architecture, 'none', target_size)
+        model_instance = get_pretrained_model(architecture, 'none', img_size)
         _, out_dim = model_features(
-            get_image_encoder(architecture, model_instance), architecture, layer, target_size
+            get_image_encoder(architecture, model_instance), architecture, layer, img_size
         )
         out_dims.append(out_dim)
     return act_dict, out_dims
@@ -330,11 +330,11 @@ def _load_weights(model: nn.Module, weights: str) -> nn.Module:
     return model
 
 
-def get_pretrained_model(network_name: str, weights: str, target_size: int) -> nn.Module:
+def get_pretrained_model(network_name: str, weights: str, img_size: int) -> nn.Module:
     """Loading a network with/out pretrained weights."""
     if network_name not in available_models(flatten=True):
         raise RuntimeError('Network %s is not supported.' % network_name)
-    model_utils.check_input_size(network_name, target_size)
+    model_utils.check_input_size(network_name, img_size)
 
     if 'clip_' in network_name:
         # TODO: support for None

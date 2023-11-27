@@ -94,10 +94,10 @@ def is_resnet_backbone(architecture: str) -> bool:
     return 'resnet' in architecture or 'resnext' in architecture or 'taskonomy_' in architecture
 
 
-def generic_features_size(model: nn.Module, target_size: int,
+def generic_features_size(model: nn.Module, img_size: int,
                           dtype: Optional[Type] = None) -> Tuple[int]:
     """Computed the output size of a network."""
-    img = np.random.randint(0, 256, (target_size, target_size, 3)).astype('float32') / 255
+    img = np.random.randint(0, 256, (img_size, img_size, 3)).astype('float32') / 255
     img = torchvis_fun.to_tensor(img).unsqueeze(0)
     if dtype is not None:
         img = img.cuda()
@@ -108,7 +108,7 @@ def generic_features_size(model: nn.Module, target_size: int,
     return out[0].shape
 
 
-def check_input_size(architecture: str, target_size: int) -> None:
+def check_input_size(architecture: str, img_size: int) -> None:
     expected_sizes = {
         'clip_RN50x4': 288,
         'clip_RN50x16': 384,
@@ -116,11 +116,11 @@ def check_input_size(architecture: str, target_size: int) -> None:
         'clip_ViT-L/14@336px': 336,
     }
     raise_error = 0
-    if 'vit_' in architecture and target_size != 224:
+    if 'vit_' in architecture and img_size != 224:
         raise_error = 224
-    elif architecture in expected_sizes and target_size != expected_sizes[architecture]:
+    elif architecture in expected_sizes and img_size != expected_sizes[architecture]:
         raise_error = expected_sizes[architecture]
     if raise_error > 0:
         raise RuntimeError(
-            'Network %s expects size %s but got %d' % (architecture, raise_error, target_size)
+            'Network %s expects size %s but got %d' % (architecture, raise_error, img_size)
         )
