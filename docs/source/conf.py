@@ -48,4 +48,9 @@ html_static_path = ['_static']
 html_domain_indices = True
 html_baseurl = "https://osculari.readthedocs.io"
 
+# Changing sidebar title
+html_title = "Osculari"
+
+html_favicon = "_static/img/osculari_logo.png"
+
 nb_execution_mode = "off"
