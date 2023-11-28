@@ -2,7 +2,7 @@
 Extracting features from different layers of a pretrained model.
 """
 
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Dict
 
 from torchvision import models as torch_models
 
@@ -79,6 +79,74 @@ def _available_densenet_layers(_architecture: str) -> List[str]:
     return ['feature%d' % b for b in range(12)]
 
 
+def _available_squeezenet_layers(_architecture: str) -> List[str]:
+    return [
+        *['feature%d' % b for b in range(13)],
+        *['classifier%d' % b for b in [1, 2]],
+    ]
+
+
+def _available_mnasnet_layers(_architecture: str) -> List[str]:
+    return ['layer%d' % b for b in range(17)]
+
+
+def _available_shufflenet_layers(_architecture: str) -> List[str]:
+    return ['layer%d' % b for b in range(6)]
+
+
+def _available_efficientnet_layers(architecture: str) -> List[str]:
+    max_features = 8 if architecture == 'efficientnet_v2_s' else 9
+    return ['feature%d' % b for b in range(max_features)]
+
+
+def _available_googlenet_layers(_architecture: Optional[str] = None,
+                                return_inds: Optional[bool] = False) -> Union[List[str], Dict]:
+    layers = {
+        'conv1': 0,
+        'maxpool1': 1,
+        'conv2': 2,
+        'conv3': 3,
+        'maxpool2': 4,
+        'inception3a': 5,
+        'inception3b': 6,
+        'maxpool3': 7,
+        'inception4a': 8,
+        'inception4b': 9,
+        'inception4c': 10,
+        'inception4d': 11,
+        'inception4e': 12,
+        'maxpool4': 13,
+        'inception5a': 14,
+        'inception5b': 15
+    }
+    return layers if return_inds else list(layers.keys())
+
+
+def _available_inception_layers(_architecture: Optional[str] = None,
+                                return_inds: Optional[bool] = False) -> Union[List[str], Dict]:
+    layers = {
+        'Conv2d_1a_3x3': 0,
+        'Conv2d_2a_3x3': 1,
+        'Conv2d_2b_3x3': 2,
+        'maxpool1': 3,
+        'Conv2d_3b_1x1': 4,
+        'Conv2d_4a_3x3': 5,
+        'maxpool2': 6,
+        'Mixed_5b': 7,
+        'Mixed_5c': 8,
+        'Mixed_5d': 9,
+        'Mixed_6a': 10,
+        'Mixed_6b': 11,
+        'Mixed_6c': 12,
+        'Mixed_6d': 13,
+        'Mixed_6e': 14,
+        'Mixed_7a': 15,
+        'Mixed_7b': 16,
+        'Mixed_7c': 17,
+    }
+    return layers if return_inds else list(layers.keys())
+
+
 def _available_taskonomy_layers(architecture: str) -> List[str]:
     return [*_available_resnet_layers(architecture), 'encoder']
 
@@ -109,10 +177,22 @@ def _available_imagenet_layers(architecture: str) -> List[str]:
         common_layers = _available_vgg_layers(architecture)
     elif architecture == 'alexnet':
         common_layers = _available_alexnet_layers(architecture)
+    elif architecture == 'googlenet':
+        common_layers = _available_googlenet_layers(architecture)
+    elif architecture == 'inception_v3':
+        common_layers = _available_inception_layers(architecture)
     elif 'convnext' in architecture:
         common_layers = _available_convnext_layers(architecture)
+    elif 'efficientnet' in architecture:
+        common_layers = _available_efficientnet_layers(architecture)
     elif 'densenet' in architecture:
         common_layers = _available_densenet_layers(architecture)
+    elif 'mnasnet' in architecture:
+        common_layers = _available_mnasnet_layers(architecture)
+    elif 'shufflenet' in architecture:
+        common_layers = _available_shufflenet_layers(architecture)
+    elif 'squeezenet' in architecture:
+        common_layers = _available_squeezenet_layers(architecture)
     elif 'regnet' in architecture:
         common_layers = _available_regnet_layers(architecture)
     elif 'mobilenet' in architecture:
@@ -160,3 +240,17 @@ def resnet_layer(layer: str, is_clip: Optional[bool] = False) -> int:
     else:
         raise RuntimeError('Unsupported resnet layer %s' % layer)
     return layer_ind
+
+
+def googlenet_cutoff_slice(layer: str) -> Union[int, None]:
+    """Returns the index of a GoogLeNet layer to cutoff the network."""
+    layers_dict = _available_googlenet_layers(return_inds=True)
+    cutoff_ind = None if layer == 'fc' else layers_dict[layer] + 1
+    return cutoff_ind
+
+
+def inception_cutoff_slice(layer: str) -> Union[int, None]:
+    """Returns the index of an Inception layer to cutoff the network."""
+    layers_dict = _available_inception_layers(return_inds=True)
+    cutoff_ind = None if layer == 'fc' else layers_dict[layer] + 1
+    return cutoff_ind
