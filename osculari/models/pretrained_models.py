@@ -184,37 +184,83 @@ def _vit_features(model: nn.Module, layer: str) -> ViTLayers:
     return ViTLayers(model, layer)
 
 
-def _vgg_features(model: nn.Module, layer: str) -> nn.Module:
-    """Creating a feature extractor from VGG network."""
+def _sequential_features(model: nn.Module, layer: str, architecture: str,
+                         avgpool: Optional[bool] = True) -> nn.Module:
+    """Creating a feature extractor from sequential network."""
     if 'feature' in layer:
         layer = int(layer.replace('feature', '')) + 1
         features = nn.Sequential(*list(model.features.children())[:layer])
     elif 'classifier' in layer:
         layer = int(layer.replace('classifier', '')) + 1
+        avgpool_layers = [model.avgpool, nn.Flatten(1)] if avgpool else []
         features = nn.Sequential(
-            model.features, model.avgpool, nn.Flatten(1), *list(model.classifier.children())[:layer]
+            model.features, *avgpool_layers, *list(model.classifier.children())[:layer]
         )
     else:
-        raise RuntimeError('Unsupported vgg layer %s' % layer)
+        raise RuntimeError('Unsupported %s layer %s' % (architecture, layer))
     return features
+
+
+def _vgg_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from VGG network."""
+    return _sequential_features(model, layer, 'vgg')
+
+
+def _alexnet_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from AlexNet network."""
+    return _sequential_features(model, layer, 'alexnet')
 
 
 def _mobilenet_features(model: nn.Module, layer: str) -> nn.Module:
-    """Creating a feature extractor from VGG network."""
-    if 'feature' in layer:
-        layer = int(layer.replace('feature', '')) + 1
-        features = nn.Sequential(*list(model.features.children())[:layer])
-    elif 'classifier' in layer:
-        layer = int(layer.replace('classifier', '')) + 1
-        features = nn.Sequential(
-            model.features, model.avgpool, nn.Flatten(1), *list(model.classifier.children())[:layer]
-        )
-    else:
-        raise RuntimeError('Unsupported mobilenet layer %s' % layer)
-    return features
+    """Creating a feature extractor from MobileNet network."""
+    return _sequential_features(model, layer, 'mobilenet')
 
 
-def _clip_features(model: nn.Module, architecture: str, layer: str, target_size: int) -> (
+def _convnext_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from ComvNeXt network."""
+    return _sequential_features(model, layer, 'convnext')
+
+
+def _squeezenet_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from SqueezeNet network."""
+    return _sequential_features(model, layer, 'squeezenet', avgpool=False)
+
+
+def _efficientnet_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from EfficientNet network."""
+    return _sequential_features(model, layer, 'efficientnet')
+
+
+def _googlenet_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from GoogLeNet network."""
+    l_ind = pretrained_layers.googlenet_cutoff_slice(layer)
+    return nn.Sequential(*list(model.children())[:l_ind])
+
+
+def _inception_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from Inception network."""
+    l_ind = pretrained_layers.inception_cutoff_slice(layer)
+    return nn.Sequential(*list(model.children())[:l_ind])
+
+
+def _mnasnet_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from MnasNet network."""
+    l_ind = int(layer.replace('layer', '')) + 1
+    return nn.Sequential(*list(model.layers.children())[:l_ind])
+
+
+def _shufflenet_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from ShuffleNet network."""
+    l_ind = int(layer.replace('layer', '')) + 1
+    return nn.Sequential(*list(model.children())[:l_ind])
+
+
+def _densenet_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from DenseNet network."""
+    return _sequential_features(model, layer, 'densenet')
+
+
+def _clip_features(model: nn.Module, architecture: str, layer: str, img_size: int) -> (
         nn.Module, Tuple[int]):
     """Creating a feature extractor from CLIP network."""
     clip_arch = architecture.replace('clip_', '')
@@ -233,7 +279,7 @@ def _clip_features(model: nn.Module, architecture: str, layer: str, target_size:
             features = _resnet_features(model, layer, is_clip=True)
         else:
             features = ViTClipLayers(model, layer)
-        out_dim = model_utils.generic_features_size(features, target_size, model.conv1.weight.dtype)
+        out_dim = model_utils.generic_features_size(features, img_size, model.conv1.weight.dtype)
     return features, out_dim
 
 
@@ -255,7 +301,7 @@ def _resnet_features(model: nn.Module, layer: str, is_clip: Optional[bool] = Fal
     return nn.Sequential(*list(model.children())[:l_ind])
 
 
-def model_features(model: nn.Module, architecture: str, layer: str, target_size: int) -> (
+def model_features(model: nn.Module, architecture: str, layer: str, img_size: int) -> (
         nn.Module, Tuple[int]):
     """Return features extracted from one layer."""
     if layer not in pretrained_layers.available_layers(architecture):
@@ -266,7 +312,7 @@ def model_features(model: nn.Module, architecture: str, layer: str, target_size:
     if architecture in _TORCHVISION_IMAGENET and layer == 'fc':
         features, out_dim = model, 1000
     elif 'clip' in architecture:
-        features, out_dim = _clip_features(model, architecture, layer, target_size)
+        features, out_dim = _clip_features(model, architecture, layer, img_size)
     else:
         if model_utils.is_resnet_backbone(architecture):
             features = _resnet_features(model, layer)
@@ -274,25 +320,43 @@ def model_features(model: nn.Module, architecture: str, layer: str, target_size:
             features = _regnet_features(model, layer)
         elif 'vgg' in architecture:
             features = _vgg_features(model, layer)
+        elif architecture == 'alexnet':
+            features = _alexnet_features(model, layer)
+        elif architecture == 'googlenet':
+            features = _googlenet_features(model, layer)
+        elif architecture == 'inception_v3':
+            features = _inception_features(model, layer)
+        elif 'convnext' in architecture:
+            features = _convnext_features(model, layer)
+        elif 'densenet' in architecture:
+            features = _densenet_features(model, layer)
+        elif 'mnasnet' in architecture:
+            features = _mnasnet_features(model, layer)
+        elif 'shufflenet' in architecture:
+            features = _shufflenet_features(model, layer)
+        elif 'squeezenet' in architecture:
+            features = _squeezenet_features(model, layer)
+        elif 'efficientnet' in architecture:
+            features = _efficientnet_features(model, layer)
         elif 'mobilenet' in architecture:
             features = _mobilenet_features(model, layer)
         elif 'vit_' in architecture:
             features = _vit_features(model, layer)
         else:
             raise RuntimeError('Unsupported network %s' % architecture)
-        out_dim = model_utils.generic_features_size(features, target_size)
+        out_dim = model_utils.generic_features_size(features, img_size)
     return features, out_dim
 
 
-def mix_features(model: nn.Module, architecture: str, layers: List[str], target_size: int) -> (
+def mix_features(model: nn.Module, architecture: str, layers: List[str], img_size: int) -> (
         Dict, List[int]):
     """Return features extracted from a set of layers."""
     act_dict, _ = model_utils.register_model_hooks(model, architecture, layers)
     out_dims = []
     for layer in layers:
-        model_instance = get_pretrained_model(architecture, 'none', target_size)
+        model_instance = get_pretrained_model(architecture, 'none', img_size)
         _, out_dim = model_features(
-            get_image_encoder(architecture, model_instance), architecture, layer, target_size
+            get_image_encoder(architecture, model_instance), architecture, layer, img_size
         )
         out_dims.append(out_dim)
     return act_dict, out_dims
@@ -330,11 +394,11 @@ def _load_weights(model: nn.Module, weights: str) -> nn.Module:
     return model
 
 
-def get_pretrained_model(network_name: str, weights: str, target_size: int) -> nn.Module:
+def get_pretrained_model(network_name: str, weights: str, img_size: int) -> nn.Module:
     """Loading a network with/out pretrained weights."""
     if network_name not in available_models(flatten=True):
         raise RuntimeError('Network %s is not supported.' % network_name)
-    model_utils.check_input_size(network_name, target_size)
+    model_utils.check_input_size(network_name, img_size)
 
     if 'clip_' in network_name:
         # TODO: support for None
@@ -347,7 +411,8 @@ def get_pretrained_model(network_name: str, weights: str, target_size: int) -> n
         # torchvision networks
         weights = _torchvision_weights(network_name, weights)
         net_fun = torch_models.segmentation if network_name in _TORCHVISION_SEGMENTATION else torch_models
-        model = net_fun.__dict__[network_name](weights=weights)
+        kwargs = {'aux_logits': False} if network_name in ['googlenet', 'inception_v3'] else {}
+        model = net_fun.__dict__[network_name](weights=weights, **kwargs)
     return model
 
 

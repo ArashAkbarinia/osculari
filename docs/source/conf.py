@@ -12,7 +12,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath('../../src/'))
+sys.path.insert(0, os.path.abspath('../../'))
 
 import osculari
 
@@ -33,6 +33,7 @@ extensions = [
     'sphinx.ext.autosummary',
     'sphinx.ext.doctest',
     'sphinx.ext.napoleon',
+    'myst_nb'
 ]
 
 templates_path = ['_templates']
@@ -46,3 +47,10 @@ html_static_path = ['_static']
 
 html_domain_indices = True
 html_baseurl = "https://osculari.readthedocs.io"
+
+# Changing sidebar title
+html_title = "Osculari"
+
+html_favicon = "_static/img/osculari_logo.png"
+
+nb_execution_mode = "off"

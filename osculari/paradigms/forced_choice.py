@@ -2,14 +2,15 @@
 Generic template for paradigms linear classifiers on top of pretrained networks.
 """
 
-from typing import Dict, Iterator, Optional
+from typing import Dict, Iterator, Optional, Union
 
 import torch
+import torch.nn as nn
 
 from . import paradigm_utils
 
 
-def epoch_loop(model: torch.nn.Module, dataset: Iterator, optimiser: torch.optim,
+def epoch_loop(model: nn.Module, dataset: Iterator, optimiser: Union[torch.optim.Optimizer, None],
                device: torch.device, return_outputs: Optional[bool] = False) -> Dict:
     # usually the code for train/test has a large overlap.
     is_train = False if optimiser is None else True
@@ -48,9 +49,9 @@ def epoch_loop(model: torch.nn.Module, dataset: Iterator, optimiser: torch.optim
     return epoch_log
 
 
-def test_dataset(model: torch.nn.Module, dataset: Iterator, device: torch.device) -> Dict:
+def test_dataset(model: nn.Module, dataset: Iterator, device: torch.device) -> Dict:
     return epoch_loop(model, dataset, optimiser=None, device=device)
 
 
-def predict_dataset(model: torch.nn.Module, dataset: Iterator, device: torch.device) -> Dict:
+def predict_dataset(model: nn.Module, dataset: Iterator, device: torch.device) -> Dict:
     return epoch_loop(model, dataset, optimiser=None, device=device, return_outputs=True)

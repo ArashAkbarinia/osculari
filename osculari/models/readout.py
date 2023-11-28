@@ -16,6 +16,7 @@ from . import pretrained_models as pretraineds
 __all__ = [
     "diff_paradigm_2afc",
     "cat_paradigm_2afc",
+    "load_paradigm_2afc",
     "ProbeNet",
     "ActivationLoader"
 ]
@@ -24,9 +25,9 @@ __all__ = [
 class BackboneNet(nn.Module):
     """Handling the backbone networks."""
 
-    def __init__(self, architecture: str, weights: str, target_size: int) -> None:
+    def __init__(self, architecture: str, weights: str, img_size: int) -> None:
         super(BackboneNet, self).__init__()
-        model = pretraineds.get_pretrained_model(architecture, weights, target_size)
+        model = pretraineds.get_pretrained_model(architecture, weights, img_size)
         self.architecture = architecture
         self.backbone = pretraineds.get_image_encoder(architecture, model)
         self.in_type = self.get_net_input_type(self.backbone)
@@ -76,18 +77,18 @@ class ActivationLoader(BackboneNet):
 class ReadOutNet(BackboneNet):
     """Reading out features from a network from one or multiple layers."""
 
-    def __init__(self, architecture: str, target_size: int, weights: str,
+    def __init__(self, architecture: str, img_size: int, weights: str,
                  layers: Union[str, List[str]], pooling: Optional[str] = None) -> None:
-        super(ReadOutNet, self).__init__(architecture, weights, target_size)
+        super(ReadOutNet, self).__init__(architecture, weights, img_size)
         if isinstance(layers, list) and len(layers) > 1:
             self.act_dict, self.out_dim = pretraineds.mix_features(
-                self.backbone, architecture, layers, target_size
+                self.backbone, architecture, layers, img_size
             )
         else:
             if isinstance(layers, list):
                 layers = layers[0]
             self.backbone, self.out_dim = pretraineds.model_features(
-                self.backbone, architecture, layers, target_size
+                self.backbone, architecture, layers, img_size
             )
 
         if type(self.out_dim) is int:

@@ -14,6 +14,10 @@ from torch.optim import lr_scheduler
 
 from ..models.readout import ProbeNet
 
+__all__ = [
+    'train_linear_probe'
+]
+
 
 def accuracy_preds(output, target, topk=(1,)):
     """Computes the accuracy over the k top predictions"""

@@ -1,4 +1,4 @@
-Examples
+Usage
 ========
 
 2AFC Paradigm
