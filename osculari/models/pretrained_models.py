@@ -184,8 +184,8 @@ def _vit_features(model: nn.Module, layer: str) -> ViTLayers:
     return ViTLayers(model, layer)
 
 
-def _vgg_features(model: nn.Module, layer: str) -> nn.Module:
-    """Creating a feature extractor from VGG network."""
+def _sequential_features(model: nn.Module, layer: str, architecture: str) -> nn.Module:
+    """Creating a feature extractor from sequential network."""
     if 'feature' in layer:
         layer = int(layer.replace('feature', '')) + 1
         features = nn.Sequential(*list(model.features.children())[:layer])
@@ -195,23 +195,33 @@ def _vgg_features(model: nn.Module, layer: str) -> nn.Module:
             model.features, model.avgpool, nn.Flatten(1), *list(model.classifier.children())[:layer]
         )
     else:
-        raise RuntimeError('Unsupported vgg layer %s' % layer)
+        raise RuntimeError('Unsupported %s layer %s' % (architecture, layer))
     return features
+
+
+def _vgg_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from VGG network."""
+    return _sequential_features(model, layer, 'vgg')
+
+
+def _alexnet_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from AlexNet network."""
+    return _sequential_features(model, layer, 'alexnet')
 
 
 def _mobilenet_features(model: nn.Module, layer: str) -> nn.Module:
-    """Creating a feature extractor from VGG network."""
-    if 'feature' in layer:
-        layer = int(layer.replace('feature', '')) + 1
-        features = nn.Sequential(*list(model.features.children())[:layer])
-    elif 'classifier' in layer:
-        layer = int(layer.replace('classifier', '')) + 1
-        features = nn.Sequential(
-            model.features, model.avgpool, nn.Flatten(1), *list(model.classifier.children())[:layer]
-        )
-    else:
-        raise RuntimeError('Unsupported mobilenet layer %s' % layer)
-    return features
+    """Creating a feature extractor from MobileNet network."""
+    return _sequential_features(model, layer, 'mobilenet')
+
+
+def _convnext_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from ComvNeXt network."""
+    return _sequential_features(model, layer, 'convnext')
+
+
+def _densenet_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from DenseNet network."""
+    return _sequential_features(model, layer, 'densenet')
 
 
 def _clip_features(model: nn.Module, architecture: str, layer: str, img_size: int) -> (
@@ -274,6 +284,12 @@ def model_features(model: nn.Module, architecture: str, layer: str, img_size: in
             features = _regnet_features(model, layer)
         elif 'vgg' in architecture:
             features = _vgg_features(model, layer)
+        elif architecture == 'alexnet':
+            features = _alexnet_features(model, layer)
+        elif 'convnext' in architecture:
+            features = _convnext_features(model, layer)
+        elif 'densenet' in architecture:
+            features = _densenet_features(model, layer)
         elif 'mobilenet' in architecture:
             features = _mobilenet_features(model, layer)
         elif 'vit_' in architecture:

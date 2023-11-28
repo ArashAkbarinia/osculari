@@ -42,6 +42,13 @@ def _available_vgg_layers(architecture: str) -> List[str]:
     ]
 
 
+def _available_alexnet_layers(_architecture: str) -> List[str]:
+    return [
+        *['feature%d' % b for b in range(13)],
+        *['classifier%d' % b for b in [1, 2, 4, 5]],
+    ]
+
+
 def _available_regnet_layers(_architecture: str) -> List[str]:
     # TODO better support for more intermediate layers
     return ['block%d' % b for b in range(5)]
@@ -62,6 +69,14 @@ def _available_mobilenet_layers(architecture: str) -> List[str]:
         *['feature%d' % b for b in range(max_features + 1)],
         *['classifier%d' % b for b in classifiers],
     ]
+
+
+def _available_convnext_layers(_architecture: str) -> List[str]:
+    return ['feature%d' % b for b in range(8)]
+
+
+def _available_densenet_layers(_architecture: str) -> List[str]:
+    return ['feature%d' % b for b in range(12)]
 
 
 def _available_taskonomy_layers(architecture: str) -> List[str]:
@@ -92,6 +107,12 @@ def _available_imagenet_layers(architecture: str) -> List[str]:
         common_layers = _available_vit_layers(architecture)
     elif 'vgg' in architecture:
         common_layers = _available_vgg_layers(architecture)
+    elif architecture == 'alexnet':
+        common_layers = _available_alexnet_layers(architecture)
+    elif 'convnext' in architecture:
+        common_layers = _available_convnext_layers(architecture)
+    elif 'densenet' in architecture:
+        common_layers = _available_densenet_layers(architecture)
     elif 'regnet' in architecture:
         common_layers = _available_regnet_layers(architecture)
     elif 'mobilenet' in architecture:
