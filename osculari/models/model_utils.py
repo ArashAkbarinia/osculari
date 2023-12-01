@@ -3,7 +3,7 @@ A set of utility functions to for PyTorch models.
 """
 
 import numpy as np
-from typing import Optional, Callable, List, Dict, Tuple, Type
+from typing import Optional, Callable, List, Dict, Tuple
 
 import torch
 import torch.nn as nn
@@ -95,13 +95,13 @@ def is_resnet_backbone(architecture: str) -> bool:
 
 
 def generic_features_size(model: nn.Module, img_size: int,
-                          dtype: Optional[Type] = None) -> Tuple[int]:
+                          is_clip: Optional[bool] = True) -> Tuple[int]:
     """Computed the output size of a network."""
     img = np.random.randint(0, 256, (img_size, img_size, 3)).astype('float32') / 255
     img = torchvis_fun.to_tensor(img).unsqueeze(0)
-    if dtype is not None:
+    if is_clip:
         img = img.cuda()
-        img = img.type(dtype)
+        img = img.type(torch.float16)
     model.eval()
     with torch.no_grad():
         out = model(img)

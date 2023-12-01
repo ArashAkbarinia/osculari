@@ -12,22 +12,24 @@ import torch.nn as nn
 import torchvision.transforms as torch_transforms
 
 from . import pretrained_models as pretraineds
+from . import model_utils
 
 __all__ = [
-    "diff_paradigm_2afc",
-    "cat_paradigm_2afc",
+    "paradigm_2afc_merge_difference",
+    "paradigm_2afc_merge_concatenate",
     "load_paradigm_2afc",
     "ProbeNet",
-    "ActivationLoader"
+    "ActivationLoader",
+    "FeatureExtractor"
 ]
 
 
 class BackboneNet(nn.Module):
     """Handling the backbone networks."""
 
-    def __init__(self, architecture: str, weights: str, img_size: int) -> None:
+    def __init__(self, architecture: str, weights: str) -> None:
         super(BackboneNet, self).__init__()
-        model = pretraineds.get_pretrained_model(architecture, weights, img_size)
+        model = pretraineds.get_pretrained_model(architecture, weights)
         self.architecture = architecture
         self.backbone = pretraineds.get_image_encoder(architecture, model)
         self.in_type = self.get_net_input_type(self.backbone)
@@ -77,56 +79,40 @@ class ActivationLoader(BackboneNet):
 class ReadOutNet(BackboneNet):
     """Reading out features from a network from one or multiple layers."""
 
-    def __init__(self, architecture: str, img_size: int, weights: str,
-                 layers: Union[str, List[str]], pooling: Optional[str] = None) -> None:
-        super(ReadOutNet, self).__init__(architecture, weights, img_size)
+    def __init__(self, architecture: str, weights: str, layers: Union[str, List[str]],
+                 pooling: Optional[str] = None) -> None:
+        super(ReadOutNet, self).__init__(architecture, weights)
         if isinstance(layers, list) and len(layers) > 1:
-            self.act_dict, self.out_dim = pretraineds.mix_features(
-                self.backbone, architecture, layers, img_size
-            )
+            self.act_dict, _ = model_utils.register_model_hooks(self.backbone, architecture, layers)
         else:
-            if isinstance(layers, list):
-                layers = layers[0]
-            self.backbone, self.out_dim = pretraineds.model_features(
-                self.backbone, architecture, layers, img_size
-            )
+            layers = layers[0] if isinstance(layers, list) else layers
+            self.backbone = pretraineds.model_features(self.backbone, architecture, layers)
+        self.layers = layers
 
-        if type(self.out_dim) is int:
-            pooling = None
         if pooling is None:
             if hasattr(self, 'act_dict'):
                 raise RuntimeError(
                     'With mix features (multiple layers readout), pooling must be set!'
                 )
-            self.pool_avg, self.pool_max, self.num_pools = None, None, 0
+            self.pool = None
         else:
-            pool_size = pooling.split('_')[1:]
-            pool_size = (int(pool_size[0]), int(pool_size[1]))
-
             if 'max' not in pooling and 'avg' not in pooling:
                 raise RuntimeError('Pooling %s not supported!' % pooling)
-            self.pool_avg = nn.AdaptiveAvgPool2d(pool_size) if 'avg' in pooling else None
-            self.pool_max = nn.AdaptiveMaxPool2d(pool_size) if 'max' in pooling else None
-            self.num_pools = 2 if 'maxavg' in pooling or 'avgmax' in pooling else 1
-
-            if hasattr(self, 'act_dict'):  # assuming there is always pooling when mix features
-                total_dim = 0
-                for odim in self.out_dim:
-                    if type(odim) is int:
-                        total_dim += odim
-                    else:
-                        tmp_size = 1 if len(odim) < 3 else np.prod(pool_size) * self.num_pools
-                        total_dim += (odim[0] * tmp_size)
-                self.out_dim = (total_dim, 1)
-            else:
-                self.out_dim = (self.out_dim[0], self.num_pools, *pool_size)
+            pool_size = pooling.split('_')[1:]
+            pool_size = (int(pool_size[0]), int(pool_size[1]))
+            self.pool = {
+                'avg': nn.AdaptiveAvgPool2d(pool_size) if 'avg' in pooling else None,
+                'max': nn.AdaptiveMaxPool2d(pool_size) if 'max' in pooling else None,
+                'num': 2 if 'maxavg' in pooling or 'avgmax' in pooling else 1,
+                'size': pool_size
+            }
 
     def _do_pool(self, x: torch.Tensor) -> torch.Tensor:
-        if self.num_pools == 0 or len(x.shape) < 3:
+        if self.pool is None or len(x.shape) < 3:
             return x
         if len(x.shape) == 3:
             x = x.unsqueeze(dim=-1)
-        x_pools = [pool(x) for pool in [self.pool_avg, self.pool_max] if pool is not None]
+        x_pools = [pool(x) for pool in [self.pool['avg'], self.pool['max']] if pool is not None]
         return torch.stack(x_pools, dim=1)
 
     def extract_features(self, x: torch.Tensor) -> torch.Tensor:
@@ -144,12 +130,20 @@ class ReadOutNet(BackboneNet):
         return x
 
 
+class FeatureExtractor(ReadOutNet):
+    """Extracting features from a pretrained network."""
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.extract_features(x)
+
+
 class ProbeNet(ReadOutNet):
     """Adding a linear layer on top of readout features."""
 
-    def __init__(self, input_nodes: int, num_classes: int, probe_layer: Optional[str] = 'nn',
-                 **kwargs) -> None:
+    def __init__(self, input_nodes: int, num_classes: int, img_size: int,
+                 probe_layer: Optional[str] = 'nn', **kwargs) -> None:
         super(ProbeNet, self).__init__(**kwargs)
+        model_utils.check_input_size(self.architecture, img_size)
         self.probe_net_params = {
             'probe': {
                 'input_nodes': input_nodes,
@@ -159,6 +153,30 @@ class ProbeNet(ReadOutNet):
             'pretrained': kwargs
         }
         self.input_nodes = input_nodes
+
+        is_clip = 'clip' in self.architecture
+        if hasattr(self, 'act_dict'):  # assuming there is always pooling when mix features
+            total_dim = 0
+            for layer in self.layers:
+                model_instance = pretraineds.get_pretrained_model(self.architecture, 'none')
+                image_encoder = pretraineds.get_image_encoder(self.architecture, model_instance)
+                layer_features = pretraineds.model_features(image_encoder, self.architecture, layer)
+                odim = model_utils.generic_features_size(layer_features, img_size, is_clip)
+                if type(odim) is int:
+                    total_dim += odim
+                else:
+                    tmp_size = 1 if len(odim) < 3 else np.prod(self.pool['size']) * self.pool['num']
+                    total_dim += (odim[0] * tmp_size)
+            self.out_dim = (total_dim, 1)
+        else:
+            self.out_dim = model_utils.generic_features_size(self.backbone, img_size, is_clip)
+            if len(self.out_dim) == 1 and self.pool is not None:
+                RuntimeWarning(
+                    'Layer %s output is a vector, no pooling can be applied' % self.layers
+                )
+            elif self.pool is not None:
+                self.out_dim = (self.out_dim[0], self.pool['num'], *self.pool['size'])
+
         self.feature_units = np.prod(self.out_dim)
         if probe_layer == 'nn':
             self.fc = nn.Linear(int(self.feature_units * self.input_nodes), num_classes)
@@ -167,6 +185,7 @@ class ProbeNet(ReadOutNet):
         else:
             # FIXME: better support for other linear classifiers
             self.fc = None  # e.g. for SVM
+            raise RuntimeError('Currently only probe_layer=\'nn\' is supported.')
 
     def do_features(self, x: torch.Tensor) -> torch.Tensor:
         x = self.extract_features(x)
@@ -188,6 +207,11 @@ class ProbeNet(ReadOutNet):
             'state_dict': altered_state_dict
         }
         return params
+
+    def forward(self, *_args):
+        raise NotImplementedError(
+            'ProbeNet does not implement the forward call. Children modules should implement it.'
+        )
 
 
 class Classifier2AFC(ProbeNet):
@@ -212,11 +236,11 @@ class Classifier2AFC(ProbeNet):
         return nn.functional.cross_entropy(output, target)
 
 
-def diff_paradigm_2afc(**kwargs: Any) -> Classifier2AFC:
+def paradigm_2afc_merge_difference(**kwargs: Any) -> Classifier2AFC:
     return Classifier2AFC(merge_paradigm='diff', **kwargs)
 
 
-def cat_paradigm_2afc(**kwargs: Any) -> Classifier2AFC:
+def paradigm_2afc_merge_concatenate(**kwargs: Any) -> Classifier2AFC:
     return Classifier2AFC(merge_paradigm='cat', **kwargs)
 
 

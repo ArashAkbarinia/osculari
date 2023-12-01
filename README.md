@@ -1,3 +1,5 @@
+# osculari
+
 [![Python version](https://img.shields.io/pypi/pyversions/osculari)](https://pypi.org/project/osculari/)
 [![Project Status](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
 [![Documentation Status](https://readthedocs.org/projects/osculari/badge/?version=latest)](https://osculari.readthedocs.io/en/latest/?badge=latest)
@@ -27,7 +29,7 @@ At a granular level, Kornia is a library that consists of the following componen
 |-----------------------------------------------------------------------------------------|----------------------------------------------------------------------------------|
 | [osculari](https://osculari.readthedocs.io/en/latest/index.html)                        | Open source library to explore and interpret pretrained deep neural networks.    |
 | [osculari.datasets](https://osculari.readthedocs.io/en/latest/osculari.datasets.html)   | A module to create datasets and dataloaders to train and test linear probes.     |
-| [osculari.models](https://osculari.readthedocs.io/en/latest/osculari.models.html)       | A module to readout pretrained networks and add linear layers on top of them,    |
+| [osculari.models](https://osculari.readthedocs.io/en/latest/osculari.models.html)       | A module to readout pretrained networks and add linear layers on top of them.    |
 | [osculari.paradigms](https://osculari.readthedocs.io/en/latest/osculari.paradigms.html) | A module to implement psychophysical paradigms to experiment with deep networks. |
 
 ## Installation
@@ -67,7 +69,7 @@ documentation with many notebooks that can also be executed on Google Colab.
 
 Let's create a linear classifier on top of the extracted features from a pretrained network to 
 perform a binary classification task (i.e., 2AFC – two-alternative-force-choice). This is easily 
-achieved by calling the `cat_paradigm_2afc` from the `osculari.models` module.
+achieved by calling the `paradigm_2afc_merge_concatenate` from the `osculari.models` module.
 
 ``` python
 
@@ -81,7 +83,7 @@ readout_kwargs = {
     'layers': layer,
     'img_size': img_size,
 }
-net_2afc = osculari.models.cat_paradigm_2afc(**readout_kwargs)
+net_2afc = osculari.models.paradigm_2afc_merge_concatenate(**readout_kwargs)
 
 ```
 
