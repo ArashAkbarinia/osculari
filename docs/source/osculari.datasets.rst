@@ -1,9 +1,6 @@
 osculari.datasets
 =========================
 
-Submodules
-----------
-
 osculari.datasets.dataset\_utils
 ---------------------------------------
 

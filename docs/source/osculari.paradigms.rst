@@ -1,9 +1,6 @@
 osculari.paradigms
 ==========================
 
-Submodules
-----------
-
 osculari.paradigms.adaptive\_psychophysics
 -------------------------------------------------
 
