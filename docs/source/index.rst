@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to Osculari's documentation!
-====================================
+Osculari
+========
 
 **Osculari** (ōsculārī; Latin; to embrace, kiss) is a Python library providing an easy interface
 for different techniques to explore and interpret the internal presentation of deep neural networks.
@@ -21,7 +21,7 @@ for different techniques to explore and interpret the internal presentation of d
 
 .. toctree::
    installation
-   usage
+   notebooks/usage
    examples
    :maxdepth: 2
    :caption: Get started:
