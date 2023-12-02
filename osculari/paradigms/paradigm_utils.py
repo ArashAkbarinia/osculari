@@ -5,9 +5,10 @@ Utility function for paradigms.
 import os
 import numpy as np
 import numpy.typing as npt
-from typing import Union, Optional, List, Callable, Dict
+from typing import Union, Optional, List, Callable, Dict, Any
 
 import torch
+import torch.nn as nn
 from torch.utils.data import DataLoader as TorchDataLoader
 from torch.utils.data import Dataset as TorchDataset
 from torch.optim import lr_scheduler
@@ -86,8 +87,9 @@ def midpoint(
 
 
 def train_linear_probe(model: ProbeNet, dataset: Union[TorchDataset, TorchDataLoader],
-                       epoch_loop: Callable, out_dir: str,
-                       device: Optional[torch.device] = None, epochs: Optional[int] = 10,
+                       epoch_loop: Callable[[nn.Module, TorchDataLoader, Any, torch.device], Dict],
+                       out_dir: str, device: Optional[torch.device] = None,
+                       epochs: Optional[int] = 10,
                        optimiser: Optional[torch.optim.Optimizer] = None,
                        scheduler: Optional[lr_scheduler.LRScheduler] = None) -> Dict:
     # dataloader
@@ -95,15 +97,10 @@ def train_linear_probe(model: ProbeNet, dataset: Union[TorchDataset, TorchDataLo
         dataset, batch_size=16, shuffle=True, num_workers=0, pin_memory=True, sampler=None
     )
 
-    # device
-    if device is None:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
     # optimiser
     model.freeze_backbone()
-    model = model.to(device)
-    params_to_optimize = [{'params': [p for p in model.fc.parameters()]}]
     if optimiser is None:
+        params_to_optimize = [{'params': [p for p in model.fc.parameters()]}]
         optimiser = torch.optim.SGD(params_to_optimize, lr=0.1, momentum=0.9, weight_decay=1e-4)
 
     # scheduler

@@ -11,11 +11,17 @@ from . import paradigm_utils
 
 
 def epoch_loop(model: nn.Module, dataset: Iterator, optimiser: Union[torch.optim.Optimizer, None],
-               device: torch.device, return_outputs: Optional[bool] = False) -> Dict:
+               device: Optional[torch.device] = None,
+               return_outputs: Optional[bool] = False) -> Dict:
+    # device
+    if device is None:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
     # usually the code for train/test has a large overlap.
     is_train = False if optimiser is None else True
     # model should be in train/eval model accordingly
     model.train() if is_train else model.eval()
+    model.to(device)
 
     accuracies = []
     losses = []
@@ -29,7 +35,7 @@ def epoch_loop(model: nn.Module, dataset: Iterator, optimiser: Union[torch.optim
             # calling the network
             output = model(*inputs)
             if return_outputs:
-                outputs.extend([out for out in output])
+                outputs.extend([out.detach().cpu().numpy() for out in output])
 
             # computing the loss function
             loss = model.loss_function(output, target)
@@ -49,9 +55,11 @@ def epoch_loop(model: nn.Module, dataset: Iterator, optimiser: Union[torch.optim
     return epoch_log
 
 
-def test_dataset(model: nn.Module, dataset: Iterator, device: torch.device) -> Dict:
+def test_dataset(model: nn.Module, dataset: Iterator,
+                 device: Optional[torch.device] = None) -> Dict:
     return epoch_loop(model, dataset, optimiser=None, device=device)
 
 
-def predict_dataset(model: nn.Module, dataset: Iterator, device: torch.device) -> Dict:
+def predict_dataset(model: nn.Module, dataset: Iterator,
+                    device: Optional[torch.device] = None) -> Dict:
     return epoch_loop(model, dataset, optimiser=None, device=device, return_outputs=True)
