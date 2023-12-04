@@ -1,9 +1,6 @@
 osculari.models
 =======================
 
-Submodules
-----------
-
 osculari.models.model\_utils
 -----------------------------------
 

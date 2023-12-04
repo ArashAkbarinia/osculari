@@ -67,10 +67,12 @@ def fg_shape_mask(img_size: int) -> npt.NDArray[bool]:
 class ShapeAppearanceDataset(TorchDataset):
     """A dataset of geometrical shapes whose appearance properties can be altered."""
 
-    def __init__(self, num_samples: int, num_images: int, img_size: int, background: Any,
-                 merge_fg_bg: Callable,
-                 unique_fg_shape: Optional[bool] = True, unique_bg: Optional[bool] = True,
-                 transform: Optional[Callable] = None) -> None:
+    def __init__(
+            self, num_samples: int, num_images: int, img_size: int, background: Any,
+            merge_fg_bg: Callable[[List[npt.NDArray[bool]], List[npt.NDArray]], Tuple],
+            unique_fg_shape: Optional[bool] = True, unique_bg: Optional[bool] = True,
+            transform: Optional[Callable] = None
+    ) -> None:
         super(ShapeAppearanceDataset, self).__init__()
         self.num_samples = num_samples
         self.num_images = num_images
