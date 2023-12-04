@@ -4,7 +4,7 @@ A set of wrapper classes to access pretrained networks for different purposes.
 
 from __future__ import annotations
 import numpy as np
-from typing import Optional, List, Union, Type, Any, Literal, Dict
+from typing import Optional, List, Union, Type, Any, Literal, Dict, Callable
 import collections
 
 import torch
@@ -17,7 +17,10 @@ from . import model_utils
 __all__ = [
     "paradigm_2afc_merge_difference",
     "paradigm_2afc_merge_concatenate",
+    "paradigm_ooo_merge_difference",
+    "paradigm_ooo_merge_concatenate",
     "load_paradigm_2afc",
+    "load_paradigm_ooo",
     "ProbeNet",
     "ActivationLoader",
     "FeatureExtractor"
@@ -146,13 +149,11 @@ class ProbeNet(ReadOutNet):
         model_utils.check_input_size(self.architecture, img_size)
         self.probe_net_params = {
             'probe': {
-                'input_nodes': input_nodes,
-                'num_classes': num_classes,
+                'img_size': img_size,
                 'probe_layer': probe_layer
             },
             'pretrained': kwargs
         }
-        self.input_nodes = input_nodes
 
         is_clip = 'clip' in self.architecture
         if hasattr(self, 'act_dict'):  # assuming there is always pooling when mix features
@@ -179,7 +180,7 @@ class ProbeNet(ReadOutNet):
 
         self.feature_units = np.prod(self.out_dim)
         if probe_layer == 'nn':
-            self.fc = nn.Linear(int(self.feature_units * self.input_nodes), num_classes)
+            self.fc = nn.Linear(int(self.feature_units * input_nodes), num_classes)
             # TODO: support for other initialisation
             torch.nn.init.constant_(self.fc.weight, 0)
         else:
@@ -219,6 +220,7 @@ class Classifier2AFC(ProbeNet):
         input_nodes = 2 if merge_paradigm == 'cat' else 1
         super(Classifier2AFC, self).__init__(input_nodes=input_nodes, num_classes=2, **kwargs)
         self.merge_paradigm = merge_paradigm
+        self.input_nodes = 2
 
     def forward(self, x0: torch.Tensor, x1: torch.Tensor) -> torch.Tensor:
         x0 = self.do_features(x0)
@@ -236,6 +238,42 @@ class Classifier2AFC(ProbeNet):
         return nn.functional.cross_entropy(output, target)
 
 
+class OddOneOutNet(ProbeNet):
+
+    def __init__(self, input_nodes: int, merge_paradigm: Literal['diff', 'cat'], **kwargs) -> None:
+        if merge_paradigm == 'cat':
+            probe_in, probe_out = input_nodes, input_nodes
+        else:
+            probe_in, probe_out = input_nodes - 1, 1
+        super(OddOneOutNet, self).__init__(input_nodes=probe_in, num_classes=probe_out, **kwargs)
+        self.input_nodes = input_nodes
+        self.merge_paradigm = merge_paradigm
+
+    def forward(self, *xs: torch.Tensor) -> torch.Tensor:
+        xs = [self.do_features(x) for x in xs]
+        if self.merge_paradigm == 'cat':
+            x = torch.cat(xs, dim=1)
+            return self.do_probe_layer(x)
+        else:
+            comps = []
+            for i in range(len(xs)):
+                compi = [xs[i] - xs[j] for j in range(len(xs)) if i != j]
+                comps.append(self.do_probe_layer(torch.abs(torch.cat(compi, dim=1))))
+            return torch.cat(comps, dim=1)
+
+    def serialisation_params(self) -> Dict:
+        params = super().serialisation_params()
+        params['architecture']['classifier'] = {
+            'input_nodes': self.input_nodes,
+            'merge_paradigm': self.merge_paradigm
+        }
+        return params
+
+    @staticmethod
+    def loss_function(output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        return nn.functional.cross_entropy(output, target)
+
+
 def paradigm_2afc_merge_difference(**kwargs: Any) -> Classifier2AFC:
     return Classifier2AFC(merge_paradigm='diff', **kwargs)
 
@@ -244,10 +282,30 @@ def paradigm_2afc_merge_concatenate(**kwargs: Any) -> Classifier2AFC:
     return Classifier2AFC(merge_paradigm='cat', **kwargs)
 
 
-def load_paradigm_2afc(checkpoint: Any) -> Classifier2AFC:
+def paradigm_ooo_merge_difference(input_nodes: int, **kwargs: Any) -> OddOneOutNet:
+    return OddOneOutNet(input_nodes=input_nodes, merge_paradigm='diff', **kwargs)
+
+
+def paradigm_ooo_merge_concatenate(input_nodes: int, **kwargs: Any) -> OddOneOutNet:
+    return OddOneOutNet(input_nodes=input_nodes, merge_paradigm='cat', **kwargs)
+
+
+def _load_probenet(
+        checkpoint: Any, paradigm_class: Callable
+) -> Union[Classifier2AFC, OddOneOutNet]:
     if type(checkpoint) is str:
         checkpoint = torch.load(checkpoint, map_location='cpu')['network']
     arch_params = checkpoint['architecture']
-    network = Classifier2AFC(**arch_params['pretrained'], **arch_params['classifier'])
+    network = paradigm_class(
+        **arch_params['pretrained'], **arch_params['probe'], **arch_params['classifier']
+    )
     network.load_state_dict(checkpoint['state_dict'], strict=False)
     return network
+
+
+def load_paradigm_2afc(checkpoint: Any) -> Classifier2AFC:
+    return _load_probenet(checkpoint, Classifier2AFC)
+
+
+def load_paradigm_ooo(checkpoint: Any) -> OddOneOutNet:
+    return _load_probenet(checkpoint, OddOneOutNet)

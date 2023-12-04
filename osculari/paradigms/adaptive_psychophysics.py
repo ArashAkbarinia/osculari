@@ -4,12 +4,11 @@ A collection of adaptive psychophysical experimental methods.
 
 import numpy as np
 import numpy.typing as npt
-from typing import Callable, Optional, Dict
+from typing import Callable, Optional, Dict, Tuple
 
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader as TorchDataLoader
-from torch.utils.data import Dataset as TorchDataset
 
 from . import paradigm_utils
 
@@ -20,7 +19,7 @@ __all__ = [
 
 def staircase(model: nn.Module,
               test_fun: Callable[[nn.Module, TorchDataLoader, torch.device], Dict],
-              dataset_fun: Callable[[float], (TorchDataset, int, float)],
+              dataset_fun: Callable[[float], Tuple],
               low_val: float, high_val: float, device: Optional[torch.device] = None,
               max_attempts: Optional[int] = 20) -> npt.NDArray:
     """Computing the psychometric function following staircase procedure."""
