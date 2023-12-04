@@ -241,6 +241,10 @@ class Classifier2AFC(ProbeNet):
 class OddOneOutNet(ProbeNet):
 
     def __init__(self, input_nodes: int, merge_paradigm: Literal['diff', 'cat'], **kwargs) -> None:
+        if input_nodes < 3:
+            raise RuntimeError(
+                'OddOneOutNet minimum input_nodes is 3. Passed input_nodes=%d' % input_nodes
+            )
         if merge_paradigm == 'cat':
             probe_in, probe_out = input_nodes, input_nodes
         else:
