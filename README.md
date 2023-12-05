@@ -5,6 +5,7 @@
 [![Documentation Status](https://readthedocs.org/projects/osculari/badge/?version=latest)](https://osculari.readthedocs.io/en/latest/?badge=latest)
 [![PyPi Status](https://img.shields.io/pypi/v/osculari.svg)](https://pypi.org/project/osculari/)
 [![Licence](https://img.shields.io/pypi/l/osculari.svg)](LICENSE)
+[![DOI](https://zenodo.org/badge/717052640.svg)](https://zenodo.org/doi/10.5281/zenodo.10214005)
 
 Exploring and interpreting pretrained deep neural networks.
 

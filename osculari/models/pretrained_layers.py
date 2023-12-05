@@ -54,6 +54,13 @@ def _available_regnet_layers(_architecture: str) -> List[str]:
     return ['block%d' % b for b in range(5)]
 
 
+def _available_maxvit_layers(_architecture: str) -> List[str]:
+    return [
+        *['block%d' % b for b in range(5)],
+        *['classifier%d' % b for b in [3]],
+    ]
+
+
 def _available_mobilenet_layers(architecture: str) -> List[str]:
     max_features = 0
     if 'mobilenet_v3_large' in architecture:
@@ -171,6 +178,8 @@ def _available_segmentation_layers(architecture: str) -> List[str]:
 def _available_imagenet_layers(architecture: str) -> List[str]:
     if model_utils.is_resnet_backbone(architecture):
         common_layers = _available_resnet_layers(architecture)
+    elif 'maxvit' in architecture:
+        common_layers = _available_maxvit_layers(architecture)
     elif 'vit_' in architecture:
         common_layers = _available_vit_layers(architecture)
     elif 'vgg' in architecture:
@@ -196,7 +205,7 @@ def _available_imagenet_layers(architecture: str) -> List[str]:
     elif 'regnet' in architecture:
         common_layers = _available_regnet_layers(architecture)
     elif 'mobilenet' in architecture:
-        return _available_mobilenet_layers(architecture)
+        common_layers = _available_mobilenet_layers(architecture)
     else:
         raise RuntimeError('Unsupported imagenet architecture %s' % architecture)
     return [*common_layers, 'fc']
