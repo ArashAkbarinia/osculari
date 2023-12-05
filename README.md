@@ -150,3 +150,9 @@ test_log = osculari.paradigms.staircase(
 ```
 
 </details>
+
+
+## Contribution
+
+We welcome all contributions to the project that extend or improve code and/or documentation!
+Please read the [CONTRIBUTING](CONTRIBUTING.md) page and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
