@@ -29,6 +29,10 @@ def _available_vit_layers(architecture: str) -> List[str]:
     return ['block%d' % b for b in range(max_block)]
 
 
+def _available_swin_layers(_architecture: str) -> List[str]:
+    return ['block%d' % b for b in range(8)]
+
+
 def _available_vgg_layers(architecture: str) -> List[str]:
     max_features = {
         'vgg11': 20, 'vgg11_bn': 28,
@@ -180,6 +184,8 @@ def _available_imagenet_layers(architecture: str) -> List[str]:
         common_layers = _available_resnet_layers(architecture)
     elif 'maxvit' in architecture:
         common_layers = _available_maxvit_layers(architecture)
+    elif 'swin_' in architecture:
+        common_layers = _available_swin_layers(architecture)
     elif 'vit_' in architecture:
         common_layers = _available_vit_layers(architecture)
     elif 'vgg' in architecture:

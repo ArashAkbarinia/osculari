@@ -184,6 +184,12 @@ def _vit_features(model: nn.Module, layer: str) -> ViTLayers:
     return ViTLayers(model, layer)
 
 
+def _swin_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from SwinTransformer network."""
+    layer = int(layer.replace('block', '')) + 1
+    return nn.Sequential(*list(model.features.children())[:layer], model.permute)
+
+
 def _sequential_features(model: nn.Module, layer: str, architecture: str,
                          avgpool: Optional[bool] = True) -> nn.Module:
     """Creating a feature extractor from sequential network."""
@@ -351,6 +357,8 @@ def model_features(model: nn.Module, architecture: str, layer: str) -> nn.Module
             features = _mobilenet_features(model, layer, architecture)
         elif 'maxvit' in architecture:
             features = _maxvit_features(model, layer)
+        elif 'swin_' in architecture:
+            features = _swin_features(model, layer)
         elif 'vit_' in architecture:
             features = _vit_features(model, layer)
         else:
