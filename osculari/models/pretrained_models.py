@@ -184,6 +184,12 @@ def _vit_features(model: nn.Module, layer: str) -> ViTLayers:
     return ViTLayers(model, layer)
 
 
+def _swin_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from SwinTransformer network."""
+    layer = int(layer.replace('block', '')) + 1
+    return nn.Sequential(*list(model.features.children())[:layer], model.permute)
+
+
 def _sequential_features(model: nn.Module, layer: str, architecture: str,
                          avgpool: Optional[bool] = True) -> nn.Module:
     """Creating a feature extractor from sequential network."""
@@ -211,8 +217,11 @@ def _alexnet_features(model: nn.Module, layer: str) -> nn.Module:
     return _sequential_features(model, layer, 'alexnet')
 
 
-def _mobilenet_features(model: nn.Module, layer: str) -> nn.Module:
+def _mobilenet_features(model: nn.Module, layer: str, architecture: str) -> nn.Module:
     """Creating a feature extractor from MobileNet network."""
+    if architecture in ['lraspp_mobilenet_v3_large', 'deeplabv3_mobilenet_v3_large']:
+        layer = int(layer.replace('feature', '')) + 1
+        return nn.Sequential(*list(model.children())[:layer])
     return _sequential_features(model, layer, 'mobilenet')
 
 
@@ -260,7 +269,7 @@ def _densenet_features(model: nn.Module, layer: str) -> nn.Module:
     return _sequential_features(model, layer, 'densenet')
 
 
-def _clip_features(model: nn.Module, architecture: str, layer: str) -> nn.Module:
+def _clip_features(model: nn.Module, layer: str, architecture: str) -> nn.Module:
     """Creating a feature extractor from CLIP network."""
     clip_arch = architecture.replace('clip_', '')
     if layer == 'encoder':
@@ -270,6 +279,23 @@ def _clip_features(model: nn.Module, architecture: str, layer: str) -> nn.Module
             features = _resnet_features(model, layer, is_clip=True)
         else:
             features = ViTClipLayers(model, layer)
+    return features
+
+
+def _maxvit_features(model: nn.Module, layer: str) -> nn.Module:
+    """Creating a feature extractor from RegNet network."""
+    if 'block0' in layer:
+        features = model.stem
+    elif 'block' in layer:
+        layer = int(layer[-1])
+        features = nn.Sequential(model.stem, *list(model.blocks.children())[:layer])
+    elif 'classifier' in layer:
+        layer = int(layer.replace('classifier', '')) + 1
+        features = nn.Sequential(
+            model.stem, *list(model.blocks.children()), *list(model.classifier.children())[:layer]
+        )
+    else:
+        raise RuntimeError('Unsupported regnet layer %s' % layer)
     return features
 
 
@@ -296,12 +322,12 @@ def model_features(model: nn.Module, architecture: str, layer: str) -> nn.Module
     if layer not in pretrained_layers.available_layers(architecture):
         raise RuntimeError(
             'Layer %s is not supported for architecture %s. Call pretrained_layers.available_layers'
-            'to see a list of supported layer for an architecture.' % (layer, architecture)
+            ' to see a list of supported layer for an architecture.' % (layer, architecture)
         )
     if architecture in _TORCHVISION_IMAGENET and layer == 'fc':
         features = model
     elif 'clip' in architecture:
-        features = _clip_features(model, architecture, layer)
+        features = _clip_features(model, layer, architecture)
     else:
         if model_utils.is_resnet_backbone(architecture):
             features = _resnet_features(model, layer)
@@ -328,7 +354,11 @@ def model_features(model: nn.Module, architecture: str, layer: str) -> nn.Module
         elif 'efficientnet' in architecture:
             features = _efficientnet_features(model, layer)
         elif 'mobilenet' in architecture:
-            features = _mobilenet_features(model, layer)
+            features = _mobilenet_features(model, layer, architecture)
+        elif 'maxvit' in architecture:
+            features = _maxvit_features(model, layer)
+        elif 'swin_' in architecture:
+            features = _swin_features(model, layer)
         elif 'vit_' in architecture:
             features = _vit_features(model, layer)
         else:

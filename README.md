@@ -5,6 +5,7 @@
 [![Documentation Status](https://readthedocs.org/projects/osculari/badge/?version=latest)](https://osculari.readthedocs.io/en/latest/?badge=latest)
 [![PyPi Status](https://img.shields.io/pypi/v/osculari.svg)](https://pypi.org/project/osculari/)
 [![Licence](https://img.shields.io/pypi/l/osculari.svg)](LICENSE)
+[![DOI](https://zenodo.org/badge/717052640.svg)](https://zenodo.org/doi/10.5281/zenodo.10214005)
 
 Exploring and interpreting pretrained deep neural networks.
 
@@ -149,3 +150,9 @@ test_log = osculari.paradigms.staircase(
 ```
 
 </details>
+
+
+## Contribution
+
+We welcome all contributions to the project that extend or improve code and/or documentation!
+Please read the [CONTRIBUTING](CONTRIBUTING.md) page and follow the [Code of Conduct](CODE_OF_CONDUCT.md).
