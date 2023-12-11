@@ -1,6 +1,6 @@
 [project]
 name = "osculari"
-version = "0.0.2"
+version = "0.0.3"
 description = "Open source library to explore and interpret pretrained deep neural networks."
 keywords = [
     "deep-neural-networks",

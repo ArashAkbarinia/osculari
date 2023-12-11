@@ -6,6 +6,22 @@
 Osculari
 ========
 
+.. image:: https://www.repostatus.org/badges/latest/active.svg
+   :target: https://www.repostatus.org/#active
+.. image:: https://img.shields.io/github/v/release/ArashAkbarinia/osculari?logo=github
+   :target: https://github.com/ArashAkbarinia/osculari
+.. image:: https://img.shields.io/pypi/pyversions/osculari.svg
+   :target: https://pypi.org/project/osculari/
+.. image:: https://static.pepy.tech/badge/osculari
+   :target: https://pypi.org/project/osculari/
+.. image:: https://img.shields.io/badge/PyTorch_1.9.1+-ee4c2c?logo=pytorch&logoColor=white
+   :target: https://pytorch.org/get-started/locally/
+.. image:: https://img.shields.io/pypi/l/osculari.svg
+   :target: https://github.com/ArashAkbarinia/osculari/blob/main/LICENSE
+.. image:: https://zenodo.org/badge/717052640.svg
+   :target: https://zenodo.org/doi/10.5281/zenodo.10214005
+
+
 **Osculari** (ōsculārī; Latin; to embrace, kiss) is a Python library providing an easy interface
 for different techniques to explore and interpret the internal presentation of deep neural networks.
 
@@ -34,10 +50,3 @@ for different techniques to explore and interpret the internal presentation of d
    :maxdepth: 2
    :caption: API Reference:
    :hidden:
-
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`

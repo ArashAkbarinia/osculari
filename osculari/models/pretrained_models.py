@@ -283,7 +283,7 @@ def _clip_features(model: nn.Module, layer: str, architecture: str) -> nn.Module
 
 
 def _maxvit_features(model: nn.Module, layer: str) -> nn.Module:
-    """Creating a feature extractor from RegNet network."""
+    """Creating a feature extractor from MaxVit network."""
     if 'block0' in layer:
         features = model.stem
     elif 'block' in layer:
