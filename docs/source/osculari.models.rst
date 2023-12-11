@@ -1,6 +1,11 @@
 osculari.models
 =======================
 
+.. automodule:: osculari.models
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 osculari.models.model\_utils
 -----------------------------------
 
@@ -29,14 +34,6 @@ osculari.models.readout
 ------------------------------
 
 .. automodule:: osculari.models.readout
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: osculari.models
    :members:
    :undoc-members:
    :show-inheritance:

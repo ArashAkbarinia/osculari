@@ -1,3 +1,7 @@
+"""
+Osculari is a Python package to explore artificial neural networks with psychophysical experiments.
+"""
+
 from . import datasets
 from . import models
 from . import paradigms

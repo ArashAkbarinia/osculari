@@ -1,6 +1,11 @@
 osculari.paradigms
 ==========================
 
+.. automodule:: osculari.paradigms
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 osculari.paradigms.adaptive\_psychophysics
 -------------------------------------------------
 
@@ -21,14 +26,6 @@ osculari.paradigms.paradigm\_utils
 -----------------------------------------
 
 .. automodule:: osculari.paradigms.paradigm_utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: osculari.paradigms
    :members:
    :undoc-members:
    :show-inheritance:
