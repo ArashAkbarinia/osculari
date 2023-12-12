@@ -1,6 +1,11 @@
 osculari.datasets
 =========================
 
+.. automodule:: osculari.datasets
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 osculari.datasets.dataset\_utils
 ---------------------------------------
 
@@ -21,14 +26,6 @@ osculari.datasets.gratings
 ---------------------------------
 
 .. automodule:: osculari.datasets.gratings
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: osculari.datasets
    :members:
    :undoc-members:
    :show-inheritance:
