@@ -113,31 +113,64 @@ __all__ = [
 
 
 def available_models(flatten: Optional[bool] = False) -> Union[Dict, List]:
-    """List of supported models."""
+    """
+    List of supported models.
+
+    Parameters:
+        flatten (bool, optional): If True, returns a flattened list of all supported models.
+                                  If False, returns a dictionary of model categories.
+
+    Returns:
+        Union[Dict, List]: List of supported models or a dictionary of model categories.
+    """
+    # Define categories and corresponding models
     all_models = {
         'imagenet': _TORCHVISION_IMAGENET,
         'segmentation': _TORCHVISION_SEGMENTATION,
         'taskonomy': ['taskonomy_%s' % t for t in taskonomy_network.LIST_OF_TASKS],
         'clip': ['clip_%s' % c for c in clip.available_models()]
     }
+
+    # Return either a flattened list or the dictionary of model categories
     return list(chain.from_iterable(all_models.values())) if flatten else all_models
 
 
 class ViTLayers(nn.Module):
     def __init__(self, parent_model: nn.Module, layer: str) -> None:
-        # TODO: support for conv_proj
+        """
+        Initialize the ViTLayers module.
+
+        Parameters:
+            parent_model (nn.Module): The parent ViT model.
+            layer (str): The layer to extract features up to (format: 'blockX' where X is the
+             block number).
+
+        Raises:
+            RuntimeError: If the specified layer exceeds the total number of blocks in the parent
+             model.
+        """
         super(ViTLayers, self).__init__()
         self.parent_model = parent_model
+        # TODO: support for conv_proj
         block = int(layer.replace('block', '')) + 1
         max_blocks = len(self.parent_model.encoder.layers)
         if block > max_blocks:
             raise RuntimeError(
-                'Layer %s exceeds the total number of %d blocks.' % (layer, max_blocks)
+                f'Layer {layer} exceeds the total number of {max_blocks} blocks.'
             )
         self.parent_model.encoder.layers = self.parent_model.encoder.layers[:block]
         delattr(self.parent_model, 'heads')
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the ViT model up to the specified layer.
+
+        Parameters:
+            x (torch.Tensor): The input tensor.
+
+        Returns:
+            torch.Tensor: The output tensor after processing up to the specified layer.
+        """
         # Reshape and permute the input tensor
         x = self.parent_model._process_input(x)
         n = x.shape[0]
@@ -151,17 +184,38 @@ class ViTLayers(nn.Module):
 
 class ViTClipLayers(nn.Module):
     def __init__(self, parent_model: nn.Module, layer: str) -> None:
+        """
+        Initialize the ViTClipLayers module.
+
+        Parameters:
+            parent_model (nn.Module): The parent ViT-Clip model.
+            layer (str): The layer to extract features up to (format: 'blockX' where X is the
+             block number).
+
+        Raises:
+            RuntimeError: If the specified layer exceeds the total number of blocks in the parent
+             model.
+        """
         super(ViTClipLayers, self).__init__()
         self.parent_model = parent_model
         block = int(layer.replace('block', '')) + 1
         max_blocks = len(self.parent_model.transformer.resblocks)
         if block > max_blocks:
             raise RuntimeError(
-                'Layer %s exceeds the total number of %d blocks.' % (layer, max_blocks)
+                f'Layer {layer} exceeds the total number of {max_blocks} blocks.'
             )
         self.parent_model.transformer.resblocks = self.parent_model.transformer.resblocks[:block]
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the ViT-Clip model up to the specified layer.
+
+        Parameters:
+            x (torch.Tensor): The input tensor.
+
+        Returns:
+            torch.Tensor: The output tensor after processing up to the specified layer.
+        """
         x = self.parent_model.conv1(x)  # shape = [*, width, grid, grid]
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
@@ -318,12 +372,26 @@ def _resnet_features(model: nn.Module, layer: str, is_clip: Optional[bool] = Fal
 
 
 def model_features(model: nn.Module, architecture: str, layer: str) -> nn.Module:
-    """Return features extracted from one layer."""
+    """
+    Return features extracted from one layer.
+
+    Parameters:
+        model (nn.Module): The pretrained model.
+        architecture (str): Name of the architecture.
+        layer (str): Name of the layer.
+
+    Raises:
+        RuntimeError: If the specified layer is not supported for the given architecture.
+
+    Returns:
+        nn.Module: The features extracted from the specified layer.
+    """
     if layer not in pretrained_layers.available_layers(architecture):
         raise RuntimeError(
             'Layer %s is not supported for architecture %s. Call pretrained_layers.available_layers'
-            ' to see a list of supported layer for an architecture.' % (layer, architecture)
+            ' to see a list of supported layers for an architecture.' % (layer, architecture)
         )
+
     if architecture in _TORCHVISION_IMAGENET and layer == 'fc':
         features = model
     elif 'clip' in architecture:
@@ -363,6 +431,7 @@ def model_features(model: nn.Module, architecture: str, layer: str) -> nn.Module
             features = _vit_features(model, layer)
         else:
             raise RuntimeError('Unsupported network %s' % architecture)
+
     return features
 
 
@@ -399,28 +468,52 @@ def _load_weights(model: nn.Module, weights: str) -> nn.Module:
 
 
 def get_pretrained_model(network_name: str, weights: str) -> nn.Module:
-    """Loading a network with/out pretrained weights."""
+    """
+    Load a network with or without pretrained weights.
+
+    Parameters:
+        network_name (str): Name of the network.
+        weights (str): Path to the pretrained weights file.
+
+    Raises:
+        RuntimeError: If the specified network is not supported.
+
+    Returns:
+        nn.Module: The pretrained model.
+    """
     if network_name not in available_models(flatten=True):
         raise RuntimeError('Network %s is not supported.' % network_name)
 
     if 'clip_' in network_name:
+        # Load CLIP model
         # TODO: support for None
         clip_version = network_name.replace('clip_', '')
         model, _ = clip.load(clip_version)
     elif 'taskonomy_' in network_name:
+        # Load Taskonomy model
         model = taskonomy_network.TaskonomyEncoder()
         model = _load_weights(model, _taskonomy_weights(network_name, weights))
     else:
-        # torchvision networks
+        # Load torchvision networks
         weights = _torchvision_weights(network_name, weights)
         net_fun = torch_models.segmentation if network_name in _TORCHVISION_SEGMENTATION else torch_models
         kwargs = {'aux_logits': False} if network_name in ['googlenet', 'inception_v3'] else {}
         model = net_fun.__dict__[network_name](weights=weights, **kwargs)
+
     return model
 
 
 def get_image_encoder(network_name: str, model: nn.Module) -> nn.Module:
-    """Returns the encoder block of a network."""
+    """
+    Returns the encoder block of a network.
+
+    Parameters:
+        network_name (str): Name of the network.
+        model (nn.Module): The pretrained model.
+
+    Returns:
+        nn.Module: The encoder block of the network.
+    """
     if 'clip' in network_name:
         return model.visual
     elif network_name in _TORCHVISION_SEGMENTATION:
@@ -429,7 +522,15 @@ def get_image_encoder(network_name: str, model: nn.Module) -> nn.Module:
 
 
 def preprocess_mean_std(network_name: str) -> (Tuple[float], Tuple[float]):
-    """Returning the mean and std used in pretrained preprocessing."""
+    """
+    Returns the mean and std used in pretrained preprocessing.
+
+    Parameters:
+        network_name (str): Name of the network.
+
+    Returns:
+        Tuple[float], Tuple[float]: Mean and std for preprocessing.
+    """
     if 'clip_' in network_name:
         mean = (0.48145466, 0.4578275, 0.40821073)
         std = (0.26862954, 0.26130258, 0.27577711)
@@ -444,4 +545,5 @@ def preprocess_mean_std(network_name: str) -> (Tuple[float], Tuple[float]):
         std = (0.229, 0.224, 0.225)
     else:
         raise RuntimeError('The preprocess for architecture %s is unknown.' % network_name)
+
     return mean, std
