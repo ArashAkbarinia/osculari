@@ -89,38 +89,88 @@ def register_model_hooks(model: nn.Module, architecture: str, layers: List[str])
 
 
 def is_resnet_backbone(architecture: str) -> bool:
-    """Checks if the backbone is from the ResNet family."""
+    """
+    Checks if the specified neural network architecture belongs to the ResNet family.
+
+    Parameters:
+        architecture (str): The name of the neural network architecture.
+
+    Returns:
+        bool: True if the architecture is from the ResNet family, False otherwise.
+    """
     # TODO: make sure all resnets are listed
+    # Check if the architecture name contains keywords related to ResNet
     return 'resnet' in architecture or 'resnext' in architecture or 'taskonomy_' in architecture
 
 
 def generic_features_size(model: nn.Module, img_size: int,
-                          is_clip: Optional[bool] = True) -> Tuple[int]:
-    """Computed the output size of a network."""
+                          is_clip: Optional[bool] = False) -> Tuple[int]:
+    """
+    Compute the output size of a neural network model given an input image size.
+
+    Parameters:
+        model (nn.Module): The neural network model.
+        img_size (int): The input image size (assuming square images).
+        is_clip (Optional[bool]): Flag indicating whether the model is a CLIP model
+         (default is False).
+
+    Returns:
+        Tuple[int]: The computed output size of the model.
+    """
+    # Generate a random image with the specified size
     img = np.random.randint(0, 256, (img_size, img_size, 3)).astype('float32') / 255
+
+    # Convert the image to a PyTorch tensor and add batch dimension
     img = torchvis_fun.to_tensor(img).unsqueeze(0)
+
+    # Move the input image to GPU and change the data type if is_clip is True
     if is_clip:
         img = img.cuda()
         img = img.type(torch.float16)
+
+    # Set the model to evaluation mode
     model.eval()
+
+    # Disable gradient computation during inference
     with torch.no_grad():
+        # Forward pass to get the output
         out = model(img)
+
+    # Return the shape of the output tensor
     return out[0].shape
 
 
 def check_input_size(architecture: str, img_size: int) -> None:
+    """
+    Check if the input image size is compatible with the specified neural network architecture.
+
+    Parameters:
+        architecture (str): The name of the neural network architecture.
+        img_size (int): The input image size.
+
+    Raises:
+        RuntimeError: If the input image size is incompatible with the specified architecture.
+    """
+    # Define expected input sizes for specific architectures
     expected_sizes = {
         'clip_RN50x4': 288,
         'clip_RN50x16': 384,
         'clip_RN50x64': 448,
         'clip_ViT-L/14@336px': 336,
     }
-    raise_error = 0
+
+    # Initialize variable to track the error size
+    raise_error_size = 0
+
+    # Check for ViT architectures with an image size other than 224
     if 'vit_' in architecture and img_size != 224:
-        raise_error = 224
+        raise_error_size = 224
+    # Check for other specified architectures
     elif architecture in expected_sizes and img_size != expected_sizes[architecture]:
-        raise_error = expected_sizes[architecture]
-    if raise_error > 0:
+        raise_error_size = expected_sizes[architecture]
+
+    # Raise an error if an incompatibility is found
+    if raise_error_size > 0:
         raise RuntimeError(
-            'Network %s expects size %s but got %d' % (architecture, raise_error, img_size)
+            f'Network {architecture} expects size {raise_error_size} but got {img_size}'
         )

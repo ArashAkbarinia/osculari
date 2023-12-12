@@ -218,7 +218,18 @@ def _available_imagenet_layers(architecture: str) -> List[str]:
 
 
 def available_layers(architecture: str) -> List[str]:
-    """Returning a list of supported layers for each architecture."""
+    """
+    Returning a list of supported layers for each architecture.
+
+    Parameters:
+        architecture (str): The name of the architecture.
+
+    Returns:
+        List[str]: A list of supported layers for the specified architecture.
+
+    Raises:
+        RuntimeError: If the specified architecture is not supported.
+    """
     if 'clip_' in architecture:
         return _available_clip_layers(architecture)
     elif 'taskonomy_' in architecture:
