@@ -55,3 +55,13 @@ build-backend = "setuptools.build_meta"
     dependencies = {file = ["requirements.txt"]}
     version = {attr = "osculari.__version__"}
     readme = {file = ["README.md"], content-type = "text/markdown"}
+
+  [tool.setuptools.dynamic.optional-dependencies]
+    dev = {file = "requirements-dev.txt"}
+
+  [tool.pytest.ini_options]
+    addopts = [
+        "--import-mode=importlib",
+        "--color=yes"
+    ]
+    testpaths = ["tests"]
