@@ -29,3 +29,11 @@ osculari.datasets.gratings
    :members:
    :undoc-members:
    :show-inheritance:
+
+osculari.datasets.imutils
+---------------------------------
+
+.. automodule:: osculari.datasets.imutils
+   :members:
+   :undoc-members:
+   :show-inheritance:

@@ -104,26 +104,6 @@ def random_colour(channels: Optional[int] = 3) -> Sequence:
     return colour
 
 
-def michelson_contrast(img: npt.NDArray, contrast: float) -> npt.NDArray:
-    """
-    Adjust the contrast of an image using the Michelson contrast formula.
-
-    Parameters:
-        img (npt.NDArray): Input image as a NumPy array.
-        contrast (float): Contrast adjustment factor. Should be in the range [0, 1].
-
-    Returns:
-        npt.NDArray: Image with adjusted contrast.
-    """
-    # Ensure that the contrast value is within the valid range
-    assert 0 <= contrast <= 1
-
-    # Apply Michelson contrast formula to adjust image contrast
-    adjusted_img = ((1 - contrast) / 2.0 + np.multiply(img, contrast)).astype(img.dtype)
-
-    return adjusted_img
-
-
 def _uniform_img(img_size: Tuple[int, int], value: Union[Sequence, int],
                  channels: Optional[int] = 3) -> npt.NDArray:
     """
