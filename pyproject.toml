@@ -26,7 +26,6 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
@@ -55,3 +54,13 @@ build-backend = "setuptools.build_meta"
     dependencies = {file = ["requirements.txt"]}
     version = {attr = "osculari.__version__"}
     readme = {file = ["README.md"], content-type = "text/markdown"}
+
+  [tool.setuptools.dynamic.optional-dependencies]
+    dev = {file = "requirements-dev.txt"}
+
+  [tool.pytest.ini_options]
+    addopts = [
+        "--import-mode=importlib",
+        "--color=yes"
+    ]
+    testpaths = ["tests"]
