@@ -55,7 +55,7 @@ def staircase(model: nn.Module,
     results = []
 
     # Number of attempts to perform the staircase procedure
-    attempt_num = 0
+    attempt_num = 1
 
     # Perform the staircase procedure until convergence
     while True:
@@ -70,7 +70,7 @@ def staircase(model: nn.Module,
         accuracy = np.mean(test_log['accuracy'])
 
         # Check if accuracy is within the acceptable range
-        if 1 < accuracy < 0:
+        if 1 < accuracy or accuracy < 0:
             raise RuntimeError('Accuracy for staircase procedure must be between 0 and 1.')
 
         # Append the current midpoint and accuracy to the results list

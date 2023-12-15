@@ -8,9 +8,18 @@ import shutil
 import os
 import torch
 from torch.utils.data import Dataset
+from torch.utils.data import DataLoader as TorchDataLoader
 
 from osculari.paradigms import paradigm_utils
 from osculari import models
+
+
+@pytest.fixture
+def example_model():
+    """Create an example model"""
+    return models.paradigm_2afc_merge_concatenate(
+        architecture='resnet18', weights=None, layers='block0', img_size=224
+    )
 
 
 def test_accuracy_binary_classification():
@@ -181,18 +190,52 @@ def dummy_epoch_loop(model, train_loader, optimiser, device):
     return {'loss': [loss.item()]}
 
 
-def test_train_linear_probe():
-    model = models.paradigm_2afc_merge_concatenate(
-        architecture='resnet18', weights=None, layers='block0', img_size=224
-    )
+def test_train_linear_probe(example_model):
     dataset = DummyDataset()
     out_dir = "test_output"
     device = torch.device("cpu")
     epochs = 5
 
     training_logs = paradigm_utils.train_linear_probe(
-        model=model,
+        model=example_model,
         dataset=dataset,
+        epoch_loop=dummy_epoch_loop,
+        out_dir=out_dir,
+        device=device,
+        epochs=epochs,
+    )
+
+    assert 'loss' in training_logs
+    assert len(training_logs['loss']) == epochs
+
+    # Check if the output directory is created and the checkpoint file exists
+    assert os.path.exists(out_dir)
+    checkpoint_path = os.path.join(out_dir, 'checkpoint.pth.tar')
+    assert os.path.exists(checkpoint_path)
+
+    # Check if the checkpoint file is valid
+    checkpoint = torch.load(checkpoint_path)
+    assert 'epoch' in checkpoint
+    assert 'network' in checkpoint
+    assert 'optimizer' in checkpoint
+    assert 'scheduler' in checkpoint
+    assert 'log' in checkpoint
+
+    # Clean up the temporary test output directory
+    shutil.rmtree(out_dir)
+
+
+def test_train_linear_probe_dataloader(example_model):
+    dataloader = TorchDataLoader(
+        DummyDataset(), batch_size=4, shuffle=False, num_workers=0, pin_memory=True
+    )
+    out_dir = "test_output"
+    device = torch.device("cpu")
+    epochs = 5
+
+    training_logs = paradigm_utils.train_linear_probe(
+        model=example_model,
+        dataset=dataloader,
         epoch_loop=dummy_epoch_loop,
         out_dir=out_dir,
         device=device,
