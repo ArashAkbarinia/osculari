@@ -87,9 +87,9 @@ def accuracy(output: torch.Tensor, target: torch.Tensor) -> float:
     return acc[0].item()  # Extract the top-1 accuracy
 
 
-def circular_mean(a: float, b: float) -> float:
+def _circular_mean(a: float, b: float) -> float:
     """
-    Compute the circular mean of two angles in radians.
+    Compute the circular mean of two variables in the range of 0 to 1.
 
     Parameters:
         a (float): First angle in radians.
@@ -98,6 +98,9 @@ def circular_mean(a: float, b: float) -> float:
     Returns:
         float: Circular mean of the two angles.
     """
+    # Ensure a and b are in the range of 0 to 1
+    assert 0 <= a <= 1
+    assert 0 <= b <= 1
     # Calculate the circular mean using a conditional expression
     mu = (a + b + 1) / 2 if abs(a - b) > 0.5 else (a + b) / 2
     # Adjust the result to be in the range [0, 1)
@@ -112,7 +115,7 @@ def _compute_avg(a: Union[float, npt.NDArray], b: Union[float, npt.NDArray],
         a, b = a.copy().squeeze(), b.copy().squeeze()
     c = (a + b) / 2
     for i in circular_channels:
-        c[i] = circular_mean(a[i], b[i])
+        c[i] = _circular_mean(a[i], b[i])
     return c
 
 
