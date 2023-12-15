@@ -125,6 +125,7 @@ def generic_features_size(model: nn.Module, img_size: int,
 
     # Move the input image to GPU and change the data type if is_clip is True
     if is_clip:
+        model = model.cuda()
         img = img.cuda()
         img = img.type(torch.float16)
 
