@@ -159,6 +159,7 @@ class ShapeAppearanceDataset(TorchDataset):
         self.num_samples = num_samples
         self.num_images = num_images
         self.img_size = img_size
+        assert callable(merge_fg_bg)
         self.merge_fg_bg = merge_fg_bg
         self.bg = background
         self.unique_fg_shape = unique_fg_shape
