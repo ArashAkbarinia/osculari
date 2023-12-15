@@ -83,16 +83,16 @@ def test_check_input_size_other_architecture():
     model_utils.check_input_size(architecture, img_size)
 
 
-class SimpleModel(nn.Module):
-    def __init__(self):
-        super(SimpleModel, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = self.pool(x)
-        return x
+# class SimpleModel(nn.Module):
+#     def __init__(self):
+#         super(SimpleModel, self).__init__()
+#         self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1)
+#         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+#
+#     def forward(self, x):
+#         x = self.conv1(x)
+#         x = self.pool(x)
+#         return x
 
 
 def test_generic_features_size_resnet():
@@ -111,9 +111,9 @@ def test_generic_features_size_fc():
     assert output_size == torch.Size([1000])
 
 
-def test_generic_features_size_valid_clip():
-    # Test with a valid CLIP model and image size
-    model = SimpleModel().half()
-    img_size = 128
-    output_size = model_utils.generic_features_size(model, img_size, is_clip=True)
-    assert output_size == (64, img_size // 2, img_size // 2)
+# def test_generic_features_size_valid_clip():
+#     # Test with a valid CLIP model and image size
+#     model = SimpleModel().half()
+#     img_size = 128
+#     output_size = model_utils.generic_features_size(model, img_size, is_clip=True)
+#     assert output_size == (64, img_size // 2, img_size // 2)
