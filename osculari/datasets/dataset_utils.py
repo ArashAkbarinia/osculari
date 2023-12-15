@@ -186,6 +186,8 @@ def background_img(bg_type: Any, bg_size: Union[int, Tuple], im2double=True) -> 
             num_colours = np.random.randint(3, 25)
             num_patches = np.random.randint(2, bg_size[0] // 20)
             bg_img = _patch_img(bg_size, num_colours, num_patches, channels)
+            if 'achromatic' in bg_type:
+                bg_img = np.repeat(bg_img, 3, axis=2)
         else:
             raise RuntimeError('Unsupported background type %s.' % bg_type)
     # Handle user-specified background values
