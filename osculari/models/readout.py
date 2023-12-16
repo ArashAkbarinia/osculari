@@ -22,6 +22,8 @@ __all__ = [
     "load_paradigm_2afc",
     "load_paradigm_ooo",
     "ProbeNet",
+    "OddOneOutNet",
+    "Classifier2AFC",
     "ActivationLoader",
     "FeatureExtractor"
 ]
