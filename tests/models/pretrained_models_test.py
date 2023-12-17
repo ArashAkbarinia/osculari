@@ -7,6 +7,7 @@ import torch
 from torchvision import models as torch_models
 
 from osculari.models import readout, available_layers
+from osculari.models import pretrained_models
 
 
 def all_imagenet_networks_layers():
@@ -35,3 +36,19 @@ def test_imagenet_models(net_name, layer):
     net = readout.paradigm_2afc_merge_concatenate(**classifier_lwargs, **readout_kwargs)
     output = net(x1, x2)
     assert output.shape == (2, 2)
+
+
+def test_preprocess_mean_std_invalid_model():
+    with pytest.raises(RuntimeError):
+        _ = pretrained_models.preprocess_mean_std('invalid_network')
+
+
+def test_get_pretrained_model_invalid_model():
+    with pytest.raises(RuntimeError):
+        _ = pretrained_models.get_pretrained_model('invalid_network', 'weights')
+
+
+def test_model_features_invalid_layer():
+    network = pretrained_models.get_pretrained_model('resnet18', 'none')
+    with pytest.raises(RuntimeError):
+        _ = pretrained_models.model_features(network, 'resnet18', 'invalid_layer')
