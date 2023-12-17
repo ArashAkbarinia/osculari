@@ -11,9 +11,10 @@ import torch.nn as nn
 from torch.utils import model_zoo
 
 from torchvision import models as torch_models
+from visualpriors import taskonomy_network
 import clip
 
-from . import model_utils, pretrained_layers, taskonomy_network
+from . import model_utils, pretrained_layers
 
 _TORCHVISION_SEGMENTATION = [
     'deeplabv3_mobilenet_v3_large',
