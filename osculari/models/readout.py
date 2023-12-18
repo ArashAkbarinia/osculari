@@ -22,6 +22,8 @@ __all__ = [
     "load_paradigm_2afc",
     "load_paradigm_ooo",
     "ProbeNet",
+    "OddOneOutNet",
+    "Classifier2AFC",
     "ActivationLoader",
     "FeatureExtractor"
 ]
@@ -229,6 +231,14 @@ class FeatureExtractor(ReadOutNet):
         return self.extract_features(x)
 
 
+def _image_encoder_none_weights(architecture: str, layer: str) -> nn.Module:
+    # TODO: consider converting this into a overload functoin for generic size
+    model_instance = pretraineds.get_pretrained_model(architecture, 'none')
+    image_encoder = pretraineds.get_image_encoder(architecture, model_instance)
+    layer_features = pretraineds.model_features(image_encoder, architecture, layer)
+    return layer_features
+
+
 class ProbeNet(ReadOutNet):
     """Adding a linear layer on top of readout features."""
 
@@ -262,14 +272,11 @@ class ProbeNet(ReadOutNet):
         }
 
         # Handle features from multiple layers
-        is_clip = 'clip' in self.architecture
         if hasattr(self, 'act_dict'):
             total_dim = 0
             for layer in self.layers:
-                model_instance = pretraineds.get_pretrained_model(self.architecture, 'none')
-                image_encoder = pretraineds.get_image_encoder(self.architecture, model_instance)
-                layer_features = pretraineds.model_features(image_encoder, self.architecture, layer)
-                odim = model_utils.generic_features_size(layer_features, img_size, is_clip)
+                image_encoder = _image_encoder_none_weights(self.architecture, layer)
+                odim = model_utils.generic_features_size(image_encoder, img_size)
                 if type(odim) is int:
                     total_dim += odim
                 else:
@@ -277,7 +284,12 @@ class ProbeNet(ReadOutNet):
                     total_dim += (odim[0] * tmp_size)
             self.out_dim = (total_dim, 1)
         else:
-            self.out_dim = model_utils.generic_features_size(self.backbone, img_size, is_clip)
+            image_encoder = self.backbone
+            # To calculate the weights of the CLIP model, we load an instance in CPU by
+            # passing weights='none'
+            if 'clip' in self.architecture:
+                image_encoder = _image_encoder_none_weights(self.architecture, self.layers)
+            self.out_dim = model_utils.generic_features_size(image_encoder, img_size)
             if len(self.out_dim) == 1 and self.pool is not None:
                 RuntimeWarning(
                     'Layer %s output is a vector, no pooling can be applied' % self.layers

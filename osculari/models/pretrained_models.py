@@ -11,9 +11,10 @@ import torch.nn as nn
 from torch.utils import model_zoo
 
 from torchvision import models as torch_models
+from visualpriors import taskonomy_network
 import clip
 
-from . import model_utils, pretrained_layers, taskonomy_network
+from . import model_utils, pretrained_layers
 
 _TORCHVISION_SEGMENTATION = [
     'deeplabv3_mobilenet_v3_large',
@@ -474,6 +475,7 @@ def get_pretrained_model(network_name: str, weights: str) -> nn.Module:
     Parameters:
         network_name (str): Name of the network.
         weights (str): Path to the pretrained weights file.
+        clip_cpu (bool): Load the CLIP model in CPU.
 
     Raises:
         RuntimeError: If the specified network is not supported.
@@ -488,7 +490,8 @@ def get_pretrained_model(network_name: str, weights: str) -> nn.Module:
         # Load CLIP model
         # TODO: support for None
         clip_version = network_name.replace('clip_', '')
-        model, _ = clip.load(clip_version)
+        device = "cuda" if torch.cuda.is_available() and weights not in ['none', None] else "cpu"
+        model, _ = clip.load(clip_version, device=device)
     elif 'taskonomy_' in network_name:
         # Load Taskonomy model
         model = taskonomy_network.TaskonomyEncoder()

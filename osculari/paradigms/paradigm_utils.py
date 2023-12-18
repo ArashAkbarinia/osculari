@@ -20,20 +20,21 @@ __all__ = [
 ]
 
 
-def accuracy_preds(output: torch.Tensor, target: torch.Tensor,
-                   topk: Optional[Sequence] = (1,)) -> (List, List):
+def _accuracy_preds(output: torch.Tensor, target: torch.Tensor,
+                    topk: Optional[Sequence] = (1,)) -> (List[float], List[torch.Tensor]):
     """
-    Computes the accuracy over the k top predictions.
+    Compute accuracy and correct predictions for the top-k thresholds.
 
-    Args:
-        output: The model's output tensor containing predictions for each input sample.
-        target: The ground-truth labels for each input sample.
-        topk: An optional list of top-k accuracy thresholds to be computed (e.g., (1, 5)).
+    Parameters:
+        output (torch.Tensor): Model predictions.
+        target (torch.Tensor): Ground truth labels.
+        topk (Optional[Sequence]): Top-k thresholds for accuracy computation. Default is (1,).
 
     Returns:
-        A tuple containing the computed accuracies and correct predictions for each top-k threshold.
+        Tuple[List[float], List[torch.Tensor]]: List of accuracies for each top-k threshold,
+                                                list of correct predictions for each top-k
+                                                threshold.
     """
-
     with torch.inference_mode():  # Ensure that the model is in inference mode
         maxk = max(topk)  # Extract the maximum top-k value
         batch_size = target.size(0)  # Get the batch size
@@ -59,38 +60,50 @@ def accuracy_preds(output: torch.Tensor, target: torch.Tensor,
 
 def accuracy(output: torch.Tensor, target: torch.Tensor) -> float:
     """
-    This function computes the accuracy of a model's prediction on a given set of data.
+    Compute the accuracy of model predictions.
 
-    Args:
-        output: The model's predicted output (torch.Tensor).
-        target: The ground truth labels (torch.Tensor).
+    Parameters:
+        output (torch.Tensor): Model predictions.
+        target (torch.Tensor): Ground truth labels.
 
     Returns:
-        The accuracy of the model's predictions (float).
+        float: Accuracy of the model predictions.
     """
+    # Ensure the output has two dimensions (Linear layer output is two-dimensional)
+    assert len(output.shape) == 2
+    # Ensure output and target have the same number of elements
+    assert len(output) == len(target)
 
+    # Check if the model is performing binary classification
     if output.shape[1] == 1:
-        # Check if the model produces one-dimensional predictions
-        pred = torch.equal(torch.gt(output, 0), target.float())
-        return pred.float().mean(0, keepdim=True)[0]
+        # Convert to binary predictions (greater than 0)
+        output_class = torch.gt(output, 0).flatten()
+        # Compute accuracy for binary classification
+        pred = torch.eq(output_class, target)
+        return pred.float().mean().item()
 
     # Otherwise, the model produces multidimensional predictions
-    acc, _ = accuracy_preds(output, target, topk=[1])
+    acc, _ = _accuracy_preds(output, target, topk=[1])
     return acc[0].item()  # Extract the top-1 accuracy
 
 
-def circular_mean(a: float, b: float) -> float:
+def _circular_mean(a: float, b: float) -> float:
     """
-       Computes the circular mean of two values.
+    Compute the circular mean of two variables in the range of 0 to 1.
 
-       Args:
-           a: The first value (float).
-           b: The second value (float).
+    Parameters:
+        a (float): First angle in radians.
+        b (float): Second angle in radians.
 
-       Returns:
-           The circular mean of the two values (float).
-       """
+    Returns:
+        float: Circular mean of the two angles.
+    """
+    # Ensure a and b are in the range of 0 to 1
+    assert 0 <= a <= 1
+    assert 0 <= b <= 1
+    # Calculate the circular mean using a conditional expression
     mu = (a + b + 1) / 2 if abs(a - b) > 0.5 else (a + b) / 2
+    # Adjust the result to be in the range [0, 1)
     return mu if mu >= 1 else mu - 1
 
 
@@ -102,7 +115,7 @@ def _compute_avg(a: Union[float, npt.NDArray], b: Union[float, npt.NDArray],
         a, b = a.copy().squeeze(), b.copy().squeeze()
     c = (a + b) / 2
     for i in circular_channels:
-        c[i] = circular_mean(a[i], b[i])
+        c[i] = _circular_mean(a[i], b[i])
     return c
 
 
@@ -115,24 +128,23 @@ def midpoint(
         Union[float, npt.NDArray, None]
 ):
     """
-    Finds the midpoint of the stimulus range based on the current accuracy and the target accuracy
-     threshold.
+    Compute new midpoints for a given accuracy in a binary search.
 
-    Args:
-        acc: The current accuracy value (float).
-        low: The lower bound of the stimulus range (float or NumPy array).
-        mid: The current midpoint of the stimulus range (float or NumPy array).
-        high: The upper bound of the stimulus range (float or NumPy array).
-        th: The target accuracy threshold (float).
-        ep: The convergence tolerance (float; optional).
-        circular_channels: The list of circular channels for applying circular arithmetic when
-         computing the average (list; optional).
+    Parameters:
+        acc (float): Current accuracy.
+        low (Union[float, npt.NDArray]): Low value in the search space.
+        mid (Union[float, npt.NDArray]): Midpoint in the search space.
+        high (Union[float, npt.NDArray]): High value in the search space.
+        th (float): Target accuracy.
+        ep (Optional[float]): Acceptable range around the target accuracy. Default is 1e-4.
+        circular_channels (Optional[List]): List of circular channels. Default is None.
 
     Returns:
-        The new low, mid, and high values of the stimulus range based on the current accuracy and
-         the target accuracy threshold.
+        (Union[float, npt.NDArray, None], Union[float, npt.NDArray, None], Union[float, npt.NDArray, None]):
+        Tuple containing the updated low, mid, and high values.
+        If the accuracy is within the acceptable range of the target accuracy, returns
+        (None, None, None).
     """
-
     # Calculate the difference between the current accuracy and the target accuracy
     diff_acc = acc - th
 
@@ -157,32 +169,35 @@ def midpoint(
         return mid, new_mid, high
 
 
-def train_linear_probe(model: ProbeNet, dataset: Union[TorchDataset, TorchDataLoader],
-                       epoch_loop: Callable[[nn.Module, TorchDataLoader, Any, torch.device], Dict],
-                       out_dir: str, device: Optional[torch.device] = None,
-                       epochs: Optional[int] = 10,
-                       optimiser: Optional[torch.optim.Optimizer] = None,
-                       scheduler: Optional[lr_scheduler.LRScheduler] = None) -> Dict:
+def train_linear_probe(
+        model: ProbeNet,
+        dataset: Union[TorchDataset, TorchDataLoader],
+        epoch_loop: Callable[[nn.Module, TorchDataLoader, Any, torch.device], Dict],
+        out_dir: str,
+        device: Optional[torch.device] = None,
+        epochs: Optional[int] = 10,
+        optimiser: Optional[torch.optim.Optimizer] = None,
+        scheduler: Optional[lr_scheduler.LRScheduler] = None
+) -> Dict:
     """
-        Trains the linear probe network on the specified dataset.
+    Train a linear probe on top of a frozen backbone model.
 
-        Args:
-            model: The linear probe network to train.
-            dataset: The dataset or dataloader for training.
-            epoch_loop: A function to perform an epoch of training or testing. This function
-             must accept for positional arguments (i.e., model, train_loader, optimiser, device).
-             This function should return a dictionary.
-            out_dir: The output directory for saving checkpoints.
-            device: The device to use for training (Optional).
-            epochs: The number of epochs to train for (Optional).
-            optimiser: The optimiser to use for training (default: SGD) (Optional).
-            scheduler: The learning rate scheduler to use
-             (default: MultiStepLR at 50 and 80% of epochs) (Optional).
+    Parameters:
+        model (ProbeNet): Linear probe model.
+        dataset (Union[TorchDataset, TorchDataLoader]): Training dataset or data loader.
+        epoch_loop (Callable): Function defining the training loop for one epoch.  This function
+         must accept for positional arguments (i.e., model, train_loader, optimiser, device).
+         This function should return a dictionary.
+        out_dir (str): Output directory to save checkpoints.
+        device (Optional[torch.device]): Device on which to perform training.
+        epochs (Optional[int]): Number of training epochs. Default is 10.
+        optimiser (Optional[torch.optim.Optimizer]): Optimization algorithm. Default is SGD.
+        scheduler (Optional[lr_scheduler.LRScheduler]): Learning rate scheduler. Default is
+         MultiStepLR at 50 and 80% of epochs
 
-        Returns:
-            A dictionary containing training logs.
-        """
-
+    Returns:
+        Dict: Training logs containing statistics.
+    """
     # Data loading
     if isinstance(dataset, TorchDataLoader):
         train_loader = dataset

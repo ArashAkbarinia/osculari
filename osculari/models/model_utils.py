@@ -103,16 +103,13 @@ def is_resnet_backbone(architecture: str) -> bool:
     return 'resnet' in architecture or 'resnext' in architecture or 'taskonomy_' in architecture
 
 
-def generic_features_size(model: nn.Module, img_size: int,
-                          is_clip: Optional[bool] = False) -> Tuple[int]:
+def generic_features_size(model: nn.Module, img_size: int) -> Tuple[int]:
     """
     Compute the output size of a neural network model given an input image size.
 
     Parameters:
         model (nn.Module): The neural network model.
         img_size (int): The input image size (assuming square images).
-        is_clip (Optional[bool]): Flag indicating whether the model is a CLIP model
-         (default is False).
 
     Returns:
         Tuple[int]: The computed output size of the model.
@@ -122,11 +119,6 @@ def generic_features_size(model: nn.Module, img_size: int,
 
     # Convert the image to a PyTorch tensor and add batch dimension
     img = torchvis_fun.to_tensor(img).unsqueeze(0)
-
-    # Move the input image to GPU and change the data type if is_clip is True
-    if is_clip:
-        img = img.cuda()
-        img = img.type(torch.float16)
 
     # Set the model to evaluation mode
     model.eval()

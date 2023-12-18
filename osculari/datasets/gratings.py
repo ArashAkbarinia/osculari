@@ -91,7 +91,7 @@ class GratingsDataset(TorchDataset):
     """
 
     def __init__(self, img_size: int, spatial_frequencies: Optional[Sequence[int]] = None,
-                 thetas: Optional[Sequence[int]] = None, gaussian_sigma: Optional[float] = None,
+                 thetas: Optional[Sequence[float]] = None, gaussian_sigma: Optional[float] = None,
                  transform: Optional[Callable] = None) -> None:
         super(GratingsDataset, self).__init__()
         self.img_size = img_size
