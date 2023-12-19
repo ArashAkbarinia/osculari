@@ -13,27 +13,41 @@ from . import pretrained_layers
 
 __all__ = [
     'generic_features_size',
-    'check_input_size'
+    'check_input_size',
+    'register_model_hooks'
 ]
 
 
 def out_hook(name: str, out_dict: Dict, sequence_first: Optional[bool] = False) -> Callable:
-    """Creating callable hook function"""
+    """
+    Create a hook to capture the output of a specific layer in a PyTorch model.
+
+    Parameters:
+        name (str): Name of the layer.
+        out_dict (Dict): Dictionary to store the captured output.
+        sequence_first (Optional[bool]): Whether to permute the output tensor if it has three
+            dimensions with the sequence dimension first.
+
+    Returns:
+        Callable: Hook function.
+    """
 
     def hook(_model: nn.Module, _input_x: torch.Tensor, output_y: torch.Tensor):
+        """Detach the output tensor and store it in the dictionary"""
         out_dict[name] = output_y.detach()
+
         if sequence_first and len(out_dict[name].shape) == 3:
-            # clip output (SequenceLength, Batch, HiddenDimension)
+            # If sequence_first is True and the tensor has three dimensions, permute the tensor
+            # (SequenceLength, Batch, HiddenDimension) -> (Batch, SequenceLength, HiddenDimension)
             out_dict[name] = out_dict[name].permute(1, 0, 2)
 
     return hook
 
 
-def resnet_hooks(model: nn.Module, layers: List[str], is_clip: Optional[bool] = False) -> (
-        Dict, Dict):
-    """Creates hooks for the ResNet model."""
-    act_dict = dict()
-    rf_hooks = dict()
+def _resnet_hooks(model: nn.Module, layers: List[str],
+                  is_clip: Optional[bool] = False) -> (Dict, Dict):
+    """Setting up hooks for the ResNet architecture."""
+    act_dict, rf_hooks = dict(), dict()
     model_layers = list(model.children())
     for layer in layers:
         l_ind = pretrained_layers.resnet_layer(layer, is_clip=is_clip)
@@ -41,17 +55,16 @@ def resnet_hooks(model: nn.Module, layers: List[str], is_clip: Optional[bool] = 
     return act_dict, rf_hooks
 
 
-def clip_hooks(model: nn.Module, layers: List[str], architecture: str) -> (Dict, Dict):
-    """Creates hooks for the Clip model."""
+def _clip_hooks(model: nn.Module, layers: List[str], architecture: str) -> (Dict, Dict):
+    """Setting up hooks for the CLIP networks."""
     if architecture.replace('clip_', '') in ['RN50', 'RN101', 'RN50x4', 'RN50x16', 'RN50x64']:
-        act_dict, rf_hooks = resnet_hooks(model, layers, is_clip=True)
+        act_dict, rf_hooks = _resnet_hooks(model, layers, is_clip=True)
     else:
-        act_dict = dict()
-        rf_hooks = dict()
+        act_dict, rf_hooks = dict(), dict()
         for layer in layers:
             if layer == 'encoder':
                 layer_hook = model
-            elif layer == 'conv1':
+            elif layer == 'conv_proj':
                 layer_hook = model.conv1
             else:
                 block_ind = int(layer.replace('block', ''))
@@ -60,12 +73,12 @@ def clip_hooks(model: nn.Module, layers: List[str], architecture: str) -> (Dict,
     return act_dict, rf_hooks
 
 
-def vit_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
-    act_dict = dict()
-    rf_hooks = dict()
+def _vit_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
+    """Setting up hooks for the ViT architecture."""
+    act_dict, rf_hooks = dict(), dict()
     for layer in layers:
         if layer == 'fc':
-            layer_hook = model.heads
+            layer_hook = model
         elif layer == 'conv_proj':
             layer_hook = model.conv_proj
         else:
@@ -76,15 +89,40 @@ def vit_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
 
 
 def register_model_hooks(model: nn.Module, architecture: str, layers: List[str]) -> (Dict, Dict):
-    """Registering forward hooks to the network."""
+    """
+    Register hooks for capturing activation for specific layers in the model.
+
+    Parameters:
+        model (nn.Module): PyTorch model.
+        architecture (str): Model architecture name.
+        layers (List[str]): List of layer names for which to register hooks.
+
+    Raises:
+        RuntimeError: If the specified layer is not supported for the given architecture.
+
+    Returns:
+        (Dict, Dict): Dictionaries containing activation values and registered forward hooks.
+    """
+    for layer in layers:
+        if layer not in pretrained_layers.available_layers(architecture):
+            raise RuntimeError(
+                'Layer %s is not supported for architecture %s. Call '
+                'pretrained_layers.available_layers to see a list of supported layers for an '
+                'architecture.' % (layer, architecture)
+            )
+
     if is_resnet_backbone(architecture):
-        act_dict, rf_hooks = resnet_hooks(model, layers)
+        # Register hooks for ResNet backbone
+        act_dict, rf_hooks = _resnet_hooks(model, layers)
     elif 'clip' in architecture:
-        act_dict, rf_hooks = clip_hooks(model, layers, architecture)
+        # Register hooks for CLIP model
+        act_dict, rf_hooks = _clip_hooks(model, layers, architecture)
     elif 'vit_' in architecture:
-        act_dict, rf_hooks = vit_hooks(model, layers)
+        # Register hooks for Vision Transformer (ViT) model
+        act_dict, rf_hooks = _vit_hooks(model, layers)
     else:
         raise RuntimeError('Model hooks does not support network %s' % architecture)
+
     return act_dict, rf_hooks
 
 
