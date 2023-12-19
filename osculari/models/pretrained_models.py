@@ -345,7 +345,7 @@ def _maxvit_features(model: nn.Module, layer: str) -> nn.Module:
     if 'block0' in layer:
         features = model.stem
     elif 'block' in layer:
-        layer = int(layer[-1])
+        layer = int(layer.replace('block', ''))
         features = nn.Sequential(model.stem, *list(model.blocks.children())[:layer])
     elif 'classifier' in layer:
         layer = int(layer.replace('classifier', '')) + 1
@@ -362,7 +362,7 @@ def _regnet_features(model: nn.Module, layer: str) -> nn.Module:
     if 'block0' in layer:
         features = model.stem
     elif 'block' in layer:
-        layer = int(layer[-1])
+        layer = int(layer.replace('block', ''))
         features = nn.Sequential(model.stem, *list(model.trunk_output.children())[:layer])
     else:
         raise RuntimeError('Unsupported regnet layer %s' % layer)
