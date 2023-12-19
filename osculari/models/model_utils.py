@@ -47,20 +47,20 @@ def out_hook(name: str, out_dict: Dict, sequence_first: Optional[bool] = False) 
 def _resnet_hooks(model: nn.Module, layers: List[str],
                   is_clip: Optional[bool] = False) -> (Dict, Dict):
     """Setting up hooks for the ResNet architecture."""
-    act_dict, rf_hooks = dict(), dict()
+    acts, hooks = dict(), dict()
     model_layers = list(model.children())
     for layer in layers:
         l_ind = pretrained_layers.resnet_layer(layer, is_clip=is_clip)
-        rf_hooks[layer] = model_layers[l_ind].register_forward_hook(out_hook(layer, act_dict))
-    return act_dict, rf_hooks
+        hooks[layer] = model_layers[l_ind].register_forward_hook(out_hook(layer, acts))
+    return acts, hooks
 
 
 def _clip_hooks(model: nn.Module, layers: List[str], architecture: str) -> (Dict, Dict):
     """Setting up hooks for the CLIP networks."""
     if architecture.replace('clip_', '') in ['RN50', 'RN101', 'RN50x4', 'RN50x16', 'RN50x64']:
-        act_dict, rf_hooks = _resnet_hooks(model, layers, is_clip=True)
+        acts, hooks = _resnet_hooks(model, layers, is_clip=True)
     else:
-        act_dict, rf_hooks = dict(), dict()
+        acts, hooks = dict(), dict()
         for layer in layers:
             if layer == 'encoder':
                 layer_hook = model
@@ -69,13 +69,13 @@ def _clip_hooks(model: nn.Module, layers: List[str], architecture: str) -> (Dict
             else:
                 block_ind = int(layer.replace('block', ''))
                 layer_hook = model.transformer.resblocks[block_ind]
-            rf_hooks[layer] = layer_hook.register_forward_hook(out_hook(layer, act_dict, True))
-    return act_dict, rf_hooks
+            hooks[layer] = layer_hook.register_forward_hook(out_hook(layer, acts, True))
+    return acts, hooks
 
 
 def _vit_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
     """Setting up hooks for the ViT architecture."""
-    act_dict, rf_hooks = dict(), dict()
+    acts, hooks = dict(), dict()
     for layer in layers:
         if layer == 'fc':
             layer_hook = model
@@ -84,8 +84,149 @@ def _vit_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
         else:
             block_ind = int(layer.replace('block', ''))
             layer_hook = model.encoder.layers[block_ind]
-        rf_hooks[layer] = layer_hook.register_forward_hook(out_hook(layer, act_dict))
-    return act_dict, rf_hooks
+        hooks[layer] = layer_hook.register_forward_hook(out_hook(layer, acts))
+    return acts, hooks
+
+
+def _maxvit_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
+    """Setting up hooks for the ViT architecture."""
+    acts, hooks = dict(), dict()
+    for layer in layers:
+        if layer == 'fc':
+            layer_hook = model
+        elif layer == 'block0':
+            layer_hook = model.stem
+        elif 'block' in layer:
+            l_ind = int(layer.replace('block', '')) - 1
+            layer_hook = list(model.blocks.children())[l_ind]
+        elif 'classifier' in layer:
+            l_ind = int(layer.replace('classifier', ''))
+            layer_hook = list(model.classifier.children())[l_ind]
+        else:
+            raise RuntimeError('Unsupported MaxViT layer %s' % layer)
+        hooks[layer] = layer_hook.register_forward_hook(out_hook(layer, acts))
+    return acts, hooks
+
+
+def _swin_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
+    """Setting up hooks for the SwinTransformer architecture."""
+    return _attribute_hooks(model, layers, {'block': model.features})
+
+
+def _regnet_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
+    """Setting up hooks for the RegNet architecture."""
+    acts, hooks = dict(), dict()
+    for layer in layers:
+        if layer == 'fc':
+            layer_hook = model
+        elif layer == 'block0':
+            layer_hook = model.stem
+        elif 'block' in layer:
+            l_ind = int(layer.replace('block', '')) - 1
+            layer_hook = list(model.trunk_output.children())[l_ind]
+        else:
+            raise RuntimeError('Unsupported regnet layer %s' % layer)
+        hooks[layer] = layer_hook.register_forward_hook(out_hook(layer, acts))
+    return acts, hooks
+
+
+def _child_hook(children: List, layer: str, keyword: str):
+    l_ind = int(layer.replace(keyword, ''))
+    return children[l_ind]
+
+
+def _attribute_hooks(model: nn.Module, layers: List[str],
+                     attributes: Optional[Dict] = None) -> (Dict, Dict):
+    """Setting up hooks for networks with children attributes."""
+    acts, hooks = dict(), dict()
+    # A dynamic way to get model children with different names
+    if attributes is None:
+        attributes = {
+            'feature': model.features,
+            'classifier': model.classifier
+        }
+    # Looping through all the layers and making the hooks
+    for layer in layers:
+        if layer == 'fc':
+            layer_hook = model
+        else:
+            layer_hook = None
+            for attr, children in attributes.items():
+                if attr in layer:
+                    layer_hook = _child_hook(children, layer, attr)
+                    break
+            if layer_hook is None:
+                raise RuntimeError('Unsupported layer %s' % layer)
+        hooks[layer] = layer_hook.register_forward_hook(out_hook(layer, acts))
+    return acts, hooks
+
+
+def _alexnet_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
+    """Setting up hooks for the AlexNet architecture."""
+    return _attribute_hooks(model, layers)
+
+
+def _convnext_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
+    """Setting up hooks for the ConvNeXt architecture."""
+    return _attribute_hooks(model, layers)
+
+
+def _efficientnet_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
+    """Setting up hooks for the EfficientNet architecture."""
+    return _attribute_hooks(model, layers)
+
+
+def _densenet_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
+    """Setting up hooks for the DensNet architecture."""
+    return _attribute_hooks(model, layers)
+
+
+def _googlenet_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
+    """Setting up hooks for the GoogLeNet architecture."""
+    acts, hooks = dict(), dict()
+    model_layers = list(model.children())
+    for layer in layers:
+        l_ind = pretrained_layers.googlenet_cutoff_slice(layer)
+        l_ind = -1 if l_ind is None else l_ind - 1
+        hooks[layer] = model_layers[l_ind].register_forward_hook(out_hook(layer, acts))
+    return acts, hooks
+
+
+def _inception_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
+    """Setting up hooks for the Inception architecture."""
+    acts, hooks = dict(), dict()
+    model_layers = list(model.children())
+    for layer in layers:
+        l_ind = pretrained_layers.inception_cutoff_slice(layer)
+        l_ind = -1 if l_ind is None else l_ind - 1
+        hooks[layer] = model_layers[l_ind].register_forward_hook(out_hook(layer, acts))
+    return acts, hooks
+
+
+def _mnasnet_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
+    """Setting up hooks for the Mnasnet architecture."""
+    return _attribute_hooks(model, layers, {'layer': model.layers})
+
+
+def _shufflenet_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
+    """Setting up hooks for the ShuffleNet architecture."""
+    return _attribute_hooks(model, layers, {'layer': list(model.children())})
+
+
+def _mobilenet_hooks(model: nn.Module, layers: List[str], architecture: str) -> (Dict, Dict):
+    if architecture in ['lraspp_mobilenet_v3_large', 'deeplabv3_mobilenet_v3_large']:
+        return _attribute_hooks(model, layers, {'feature': list(model.children())})
+    return _attribute_hooks(model, layers)
+
+
+def _squeezenet_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
+    """Setting up hooks for the SqueezeNet architecture."""
+    return _attribute_hooks(model, layers)
+
+
+def _vgg_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
+    """Setting up hooks for the VGG architecture."""
+    return _attribute_hooks(model, layers)
 
 
 def register_model_hooks(model: nn.Module, architecture: str, layers: List[str]) -> (Dict, Dict):
@@ -112,18 +253,41 @@ def register_model_hooks(model: nn.Module, architecture: str, layers: List[str])
             )
 
     if is_resnet_backbone(architecture):
-        # Register hooks for ResNet backbone
-        act_dict, rf_hooks = _resnet_hooks(model, layers)
+        return _resnet_hooks(model, layers)
     elif 'clip' in architecture:
-        # Register hooks for CLIP model
-        act_dict, rf_hooks = _clip_hooks(model, layers, architecture)
+        return _clip_hooks(model, layers, architecture)
+    elif 'maxvit' in architecture:
+        return _maxvit_hooks(model, layers)
     elif 'vit_' in architecture:
-        # Register hooks for Vision Transformer (ViT) model
-        act_dict, rf_hooks = _vit_hooks(model, layers)
+        return _vit_hooks(model, layers)
+    elif 'regnet' in architecture:
+        return _regnet_hooks(model, layers)
+    elif 'vgg' in architecture:
+        return _vgg_hooks(model, layers)
+    elif architecture == 'alexnet':
+        return _alexnet_hooks(model, layers)
+    elif architecture == 'googlenet':
+        return _googlenet_hooks(model, layers)
+    elif architecture == 'inception_v3':
+        return _inception_hooks(model, layers)
+    elif 'convnext' in architecture:
+        return _convnext_hooks(model, layers)
+    elif 'densenet' in architecture:
+        return _densenet_hooks(model, layers)
+    elif 'mnasnet' in architecture:
+        return _mnasnet_hooks(model, layers)
+    elif 'shufflenet' in architecture:
+        return _shufflenet_hooks(model, layers)
+    elif 'squeezenet' in architecture:
+        return _squeezenet_hooks(model, layers)
+    elif 'efficientnet' in architecture:
+        return _efficientnet_hooks(model, layers)
+    elif 'mobilenet' in architecture:
+        return _mobilenet_hooks(model, layers, architecture)
+    elif 'swin_' in architecture:
+        return _swin_hooks(model, layers)
     else:
         raise RuntimeError('Model hooks does not support network %s' % architecture)
-
-    return act_dict, rf_hooks
 
 
 def is_resnet_backbone(architecture: str) -> bool:
