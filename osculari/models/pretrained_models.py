@@ -152,7 +152,6 @@ class ViTLayers(nn.Module):
         """
         super(ViTLayers, self).__init__()
         self.parent_model = parent_model
-        # TODO: support for conv_proj
         block = int(layer.replace('block', '')) + 1
         max_blocks = len(self.parent_model.encoder.layers)
         if block > max_blocks:
@@ -236,6 +235,8 @@ class ViTClipLayers(nn.Module):
 
 def _vit_features(model: nn.Module, layer: str) -> ViTLayers:
     """Creating a feature extractor from ViT network."""
+    if layer == 'conv_proj':
+        return model.conv_proj
     return ViTLayers(model, layer)
 
 
@@ -332,6 +333,8 @@ def _clip_features(model: nn.Module, layer: str, architecture: str) -> nn.Module
     else:
         if clip_arch in ['RN50', 'RN101', 'RN50x4', 'RN50x16', 'RN50x64']:
             features = _resnet_features(model, layer, is_clip=True)
+        elif layer == 'conv_proj':
+            features = model.conv1
         else:
             features = ViTClipLayers(model, layer)
     return features
@@ -475,7 +478,6 @@ def get_pretrained_model(network_name: str, weights: str) -> nn.Module:
     Parameters:
         network_name (str): Name of the network.
         weights (str): Path to the pretrained weights file.
-        clip_cpu (bool): Load the CLIP model in CPU.
 
     Raises:
         RuntimeError: If the specified network is not supported.
