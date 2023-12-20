@@ -1,9 +1,13 @@
 # osculari
 
-[![Python version](https://img.shields.io/pypi/pyversions/osculari)](https://pypi.org/project/osculari/)
 [![Project Status](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
-[![Documentation Status](https://readthedocs.org/projects/osculari/badge/?version=latest)](https://osculari.readthedocs.io/en/latest/?badge=latest)
+[![Build Status](https://github.com/ArashAkbarinia/osculari/actions/workflows/python-package.yml/badge.svg)](https://github.com/ArashAkbarinia/osculari)
 [![PyPi Status](https://img.shields.io/pypi/v/osculari.svg)](https://pypi.org/project/osculari/)
+[![Python version](https://img.shields.io/pypi/pyversions/osculari)](https://pypi.org/project/osculari/)
+[![Documentation Status](https://readthedocs.org/projects/osculari/badge/?version=latest)](https://osculari.readthedocs.io/en/latest/?badge=latest)
+[![Documentation Status](https://static.pepy.tech/badge/osculari)](https://pypi.org/project/osculari/)
+[![Documentation Status](https://codecov.io/gh/ArashAkbarinia/osculari/branch/main/graph/badge.svg)](https://app.codecov.io/gh/ArashAkbarinia/osculari)
+[![Pytorch version](https://img.shields.io/badge/PyTorch_1.9.1+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/get-started/locally/)
 [![Licence](https://img.shields.io/pypi/l/osculari.svg)](LICENSE)
 [![DOI](https://zenodo.org/badge/717052640.svg)](https://zenodo.org/doi/10.5281/zenodo.10214005)
 

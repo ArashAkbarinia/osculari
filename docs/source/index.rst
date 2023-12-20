@@ -8,12 +8,16 @@ Osculari
 
 .. image:: https://www.repostatus.org/badges/latest/active.svg
    :target: https://www.repostatus.org/#active
-.. image:: https://img.shields.io/github/v/release/ArashAkbarinia/osculari?logo=github
+.. image:: https://github.com/ArashAkbarinia/osculari/actions/workflows/python-package.yml/badge.svg
    :target: https://github.com/ArashAkbarinia/osculari
+.. image:: https://img.shields.io/pypi/v/osculari.svg
+   :target: https://pypi.org/project/osculari/
 .. image:: https://img.shields.io/pypi/pyversions/osculari.svg
    :target: https://pypi.org/project/osculari/
 .. image:: https://static.pepy.tech/badge/osculari
    :target: https://pypi.org/project/osculari/
+.. image:: https://codecov.io/gh/ArashAkbarinia/osculari/branch/main/graph/badge.svg
+   :target: https://app.codecov.io/gh/ArashAkbarinia/osculari
 .. image:: https://img.shields.io/badge/PyTorch_1.9.1+-ee4c2c?logo=pytorch&logoColor=white
    :target: https://pytorch.org/get-started/locally/
 .. image:: https://img.shields.io/pypi/l/osculari.svg

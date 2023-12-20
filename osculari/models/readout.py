@@ -6,6 +6,7 @@ from __future__ import annotations
 import numpy as np
 from typing import Optional, List, Union, Type, Any, Literal, Dict, Callable
 import collections
+import copy
 
 import torch
 import torch.nn as nn
@@ -123,7 +124,23 @@ class BackboneNet(nn.Module):
 class ActivationLoader(BackboneNet):
     """Loading activation of a network."""
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def __init__(self, architecture: str, weights: str, layers: Union[str, List[str]]) -> None:
+        """
+        Initialize the ActivationLoader.
+
+        Parameters:
+            architecture (str): The name of the pretrained neural network architecture.
+            weights (str): The weights of the pretrained network to load into the model.
+            layers (Union[str, List[str]]): The layers of the pretrained network from which to read
+             out features.
+        """
+        super(ActivationLoader, self).__init__(architecture, weights)
+        # Setting up the hooks and activation dicts
+        self.activations, self.hooks = model_utils.register_model_hooks(
+            self.backbone, architecture, layers
+        )
+
+    def forward(self, x: torch.Tensor) -> Dict:
         """
         Forward pass to load the activation of the network.
 
@@ -131,9 +148,10 @@ class ActivationLoader(BackboneNet):
             x (torch.Tensor): The input tensor.
 
         Returns:
-            torch.Tensor: The activation tensor.
+            Dict: The activation dict.
         """
-        return self.extract_features(x)
+        _ = self.extract_features(x)
+        return copy.deepcopy(self.activations)
 
 
 class ReadOutNet(BackboneNet):

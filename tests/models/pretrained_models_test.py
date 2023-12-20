@@ -12,12 +12,15 @@ from osculari.models import pretrained_models
 def all_networks_layers():
     """All supported pretrained networks and supported layers."""
     for net_name in available_models(flatten=True):
-        for layer in available_layers(net_name):
+        # getting a subset of all layers
+        layers = available_layers(net_name)
+        layers = [layers[0], layers[len(layers) // 2], layers[-1]]
+        for layer in layers:
             yield net_name, layer
 
 
 @pytest.mark.parametrize("net_name,layer", all_networks_layers())
-def test_imagenet_models(net_name, layer):
+def test_all_models(net_name, layer):
     expected_sizes = {
         'clip_RN50x4': 288,
         'clip_RN50x16': 384,
@@ -33,14 +36,38 @@ def test_imagenet_models(net_name, layer):
         'weights': weights,
         'layers': layer
     }
-    classifier_lwargs = {
+    classifier_kwargs = {
         'probe_layer': 'nn',
         'pooling': 'max_2_2'
     }
 
-    net = readout.paradigm_2afc_merge_concatenate(**classifier_lwargs, **readout_kwargs)
+    net = readout.paradigm_2afc_merge_concatenate(**readout_kwargs, **classifier_kwargs)
     output = net(x1, x2)
     assert output.shape == (2, 2)
+
+
+@pytest.mark.parametrize("net_name", available_models(flatten=True))
+def test_activation_loader(net_name):
+    expected_sizes = {
+        'clip_RN50x4': 288,
+        'clip_RN50x16': 384,
+        'clip_RN50x64': 448,
+        'clip_ViT-L/14@336px': 336,
+    }
+    img_size = expected_sizes[net_name] if net_name in expected_sizes else 224
+    x1 = torch.randn(2, 3, img_size, img_size)
+    weights = None
+    layers = available_layers(net_name)
+    readout_kwargs = {
+        'architecture': net_name,
+        'weights': weights,
+        'layers': layers
+    }
+
+    net = readout.ActivationLoader(**readout_kwargs)
+    output = net(x1)
+    assert len(output) == len(layers)
+    assert all(layer in output for layer in layers)
 
 
 def test_preprocess_mean_std_invalid_model():

@@ -26,7 +26,7 @@ def _available_vit_layers(architecture: str) -> List[str]:
         max_block = 24
     elif 'h_14' in architecture:
         max_block = 32
-    return ['block%d' % b for b in range(max_block)]
+    return ['conv_proj', *['block%d' % b for b in range(max_block)]]
 
 
 def _available_swin_layers(_architecture: str) -> List[str]:
@@ -55,12 +55,13 @@ def _available_alexnet_layers(_architecture: str) -> List[str]:
 
 def _available_regnet_layers(_architecture: str) -> List[str]:
     # TODO better support for more intermediate layers
-    return ['block%d' % b for b in range(5)]
+    return ['stem', *['block%d' % b for b in range(1, 5)]]
 
 
 def _available_maxvit_layers(_architecture: str) -> List[str]:
     return [
-        *['block%d' % b for b in range(5)],
+        'stem',
+        *['block%d' % b for b in range(1, 5)],
         *['classifier%d' % b for b in [3]],
     ]
 
@@ -251,21 +252,20 @@ def resnet_cutoff_slice(layer: str, is_clip: Optional[bool] = False) -> Union[in
 
 def resnet_layer(layer: str, is_clip: Optional[bool] = False) -> int:
     """Returns the index of a resnet layer."""
-    if layer == 'block0':
-        layer_ind = 9 if is_clip else 3
-    elif layer == 'block1':
-        layer_ind = 10 if is_clip else 4
-    elif layer == 'block2':
-        layer_ind = 11 if is_clip else 5
-    elif layer == 'block3':
-        layer_ind = 12 if is_clip else 6
-    elif layer == 'block4':
-        layer_ind = 13 if is_clip else 7
-    elif layer in ['encoder', 'fc']:
-        layer_ind = -1
+    layer_mapping = {
+        'block0': 9 if is_clip else 3,
+        'block1': 10 if is_clip else 4,
+        'block2': 11 if is_clip else 5,
+        'block3': 12 if is_clip else 6,
+        'block4': 13 if is_clip else 7,
+        'encoder': -1,
+        'fc': -1
+    }
+
+    if layer in layer_mapping:
+        return layer_mapping[layer]
     else:
         raise RuntimeError('Unsupported resnet layer %s' % layer)
-    return layer_ind
 
 
 def googlenet_cutoff_slice(layer: str) -> Union[int, None]:

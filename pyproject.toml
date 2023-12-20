@@ -1,7 +1,7 @@
 [project]
 name = "osculari"
-version = "0.0.3"
-description = "Open source library to explore and interpret pretrained deep neural networks."
+version = "0.0.4"
+description = "Open source library to explore artificial neural networks with psychophysical experiments."
 keywords = [
     "deep-neural-networks",
     "psychophysics",
