@@ -55,12 +55,13 @@ def _available_alexnet_layers(_architecture: str) -> List[str]:
 
 def _available_regnet_layers(_architecture: str) -> List[str]:
     # TODO better support for more intermediate layers
-    return ['block%d' % b for b in range(5)]
+    return ['stem', *['block%d' % b for b in range(1, 5)]]
 
 
 def _available_maxvit_layers(_architecture: str) -> List[str]:
     return [
-        *['block%d' % b for b in range(5)],
+        'stem',
+        *['block%d' % b for b in range(1, 5)],
         *['classifier%d' % b for b in [3]],
     ]
 

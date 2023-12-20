@@ -97,7 +97,7 @@ def _maxvit_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
     for layer in layers:
         if layer == 'fc':
             layer_hook = model
-        elif layer == 'block0':
+        elif layer == 'stem':
             layer_hook = model.stem
         elif 'block' in layer:
             l_ind = int(layer.replace('block', '')) - 1
@@ -122,7 +122,7 @@ def _regnet_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
     for layer in layers:
         if layer == 'fc':
             layer_hook = model
-        elif layer == 'block0':
+        elif layer == 'stem':
             layer_hook = model.stem
         elif 'block' in layer:
             l_ind = int(layer.replace('block', '')) - 1
