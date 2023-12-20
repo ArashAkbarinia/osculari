@@ -22,7 +22,8 @@ _TORCHVISION_SEGMENTATION = [
     'deeplabv3_resnet50',
     'fcn_resnet101',
     'fcn_resnet50',
-    'lraspp_mobilenet_v3_large'
+    # TODO: add lrassp, the problem is it has two outputs, low and high
+    # 'lraspp_mobilenet_v3_large'
 ]
 
 _TORCHVISION_IMAGENET = [
@@ -236,7 +237,7 @@ class ViTClipLayers(nn.Module):
 class AuxiliaryLayers(nn.Module):
     def __init__(self, parent_model: nn.Module) -> None:
         """
-        Initialize the AuxiliaryLayers module (e.g., GoogLeNet, Inception).
+        Initialize the AuxiliaryLayers module (e.g., GoogLeNet, Inception, segmentations).
 
         Parameters:
             parent_model (nn.Module): The parent model.
@@ -330,13 +331,13 @@ def _efficientnet_features(model: nn.Module, layer: str) -> nn.Module:
 def _googlenet_features(model: nn.Module, layer: str) -> nn.Module:
     """Creating a feature extractor from GoogLeNet network."""
     l_ind = pretrained_layers.googlenet_cutoff_slice(layer)
-    return nn.Sequential(*list(model.parent_model.children())[:l_ind])
+    return nn.Sequential(*list(model.children())[:l_ind])
 
 
 def _inception_features(model: nn.Module, layer: str) -> nn.Module:
     """Creating a feature extractor from Inception network."""
     l_ind = pretrained_layers.inception_cutoff_slice(layer)
-    return nn.Sequential(*list(model.parent_model.children())[:l_ind])
+    return nn.Sequential(*list(model.children())[:l_ind])
 
 
 def _mnasnet_features(model: nn.Module, layer: str) -> nn.Module:
@@ -400,12 +401,11 @@ def _regnet_features(model: nn.Module, layer: str) -> nn.Module:
     return features
 
 
-def _resnet_features(model: nn.Module, layer: str, architecture) -> nn.Module:
+def _resnet_features(model: nn.Module, layer: str, architecture: str) -> nn.Module:
     """Creating a feature extractor from ResNet network."""
     is_clip = 'clip' in architecture
     l_ind = pretrained_layers.resnet_cutoff_slice(layer, is_clip=is_clip)
-    if architecture in ['deeplabv3_resnet101', 'deeplabv3_resnet50',
-                        'fcn_resnet101', 'fcn_resnet50']:
+    if architecture in _TORCHVISION_SEGMENTATION:
         return nn.Sequential(*list(model.parent_model.children())[:l_ind])
     return nn.Sequential(*list(model.children())[:l_ind])
 
@@ -558,6 +558,7 @@ def get_image_encoder(network_name: str, model: nn.Module) -> nn.Module:
     elif network_name in _TORCHVISION_SEGMENTATION:
         return AuxiliaryLayers(model.backbone)
     elif network_name in ['googlenet', 'inception_v3']:
+        model.AuxLogits = None
         return AuxiliaryLayers(model)
     return model
 

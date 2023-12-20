@@ -9,7 +9,7 @@ import torch
 import torch.nn as nn
 import torchvision.transforms.functional as torchvis_fun
 
-from . import pretrained_layers
+from . import pretrained_layers, pretrained_models
 
 __all__ = [
     'generic_features_size',
@@ -44,11 +44,14 @@ def out_hook(name: str, out_dict: Dict, sequence_first: Optional[bool] = False) 
     return hook
 
 
-def _resnet_hooks(model: nn.Module, layers: List[str],
-                  is_clip: Optional[bool] = False) -> (Dict, Dict):
+def _resnet_hooks(model: nn.Module, layers: List[str], architecture: str) -> (Dict, Dict):
     """Setting up hooks for the ResNet architecture."""
+    is_clip = 'clip' in architecture
     acts, hooks = dict(), dict()
-    model_layers = list(model.children())
+    if architecture in pretrained_models.available_models()['segmentation']:
+        model_layers = list(model.parent_model.children())
+    else:
+        model_layers = list(model.children())
     for layer in layers:
         l_ind = pretrained_layers.resnet_layer(layer, is_clip=is_clip)
         hooks[layer] = model_layers[l_ind].register_forward_hook(out_hook(layer, acts))
@@ -58,7 +61,7 @@ def _resnet_hooks(model: nn.Module, layers: List[str],
 def _clip_hooks(model: nn.Module, layers: List[str], architecture: str) -> (Dict, Dict):
     """Setting up hooks for the CLIP networks."""
     if architecture.replace('clip_', '') in ['RN50', 'RN101', 'RN50x4', 'RN50x16', 'RN50x64']:
-        acts, hooks = _resnet_hooks(model, layers, is_clip=True)
+        acts, hooks = _resnet_hooks(model, layers, architecture)
     else:
         acts, hooks = dict(), dict()
         for layer in layers:
@@ -184,7 +187,7 @@ def _densenet_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
 def _googlenet_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
     """Setting up hooks for the GoogLeNet architecture."""
     acts, hooks = dict(), dict()
-    model_layers = list(model.children())
+    model_layers = list(model.parent_model.children())
     for layer in layers:
         l_ind = pretrained_layers.googlenet_cutoff_slice(layer)
         l_ind = -1 if l_ind is None else l_ind - 1
@@ -195,7 +198,7 @@ def _googlenet_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
 def _inception_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
     """Setting up hooks for the Inception architecture."""
     acts, hooks = dict(), dict()
-    model_layers = list(model.children())
+    model_layers = list(model.parent_model.children())
     for layer in layers:
         l_ind = pretrained_layers.inception_cutoff_slice(layer)
         l_ind = -1 if l_ind is None else l_ind - 1
@@ -215,7 +218,7 @@ def _shufflenet_hooks(model: nn.Module, layers: List[str]) -> (Dict, Dict):
 
 def _mobilenet_hooks(model: nn.Module, layers: List[str], architecture: str) -> (Dict, Dict):
     if architecture in ['lraspp_mobilenet_v3_large', 'deeplabv3_mobilenet_v3_large']:
-        return _attribute_hooks(model, layers, {'feature': list(model.children())})
+        return _attribute_hooks(model, layers, {'feature': list(model.parent_model.children())})
     return _attribute_hooks(model, layers)
 
 
@@ -253,7 +256,7 @@ def register_model_hooks(model: nn.Module, architecture: str, layers: List[str])
             )
 
     if is_resnet_backbone(architecture):
-        return _resnet_hooks(model, layers)
+        return _resnet_hooks(model, layers, architecture)
     elif 'clip' in architecture:
         return _clip_hooks(model, layers, architecture)
     elif 'maxvit' in architecture:
