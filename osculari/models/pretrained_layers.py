@@ -177,7 +177,7 @@ def _available_segmentation_layers(architecture: str) -> List[str]:
     elif 'mobilenet' in architecture:
         return _available_mobilenet_layers(architecture)
     else:
-        RuntimeError('Unsupported segmentation network: %s' % architecture)
+        raise RuntimeError('Unsupported segmentation network: %s' % architecture)
 
 
 def _available_imagenet_layers(architecture: str) -> List[str]:

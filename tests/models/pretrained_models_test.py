@@ -84,3 +84,38 @@ def test_model_features_invalid_layer():
     network = pretrained_models.get_pretrained_model('resnet18', 'none')
     with pytest.raises(RuntimeError):
         _ = pretrained_models.model_features(network, 'resnet18', 'invalid_layer')
+
+
+def test_vit_layers_invalid_blocks():
+    network = pretrained_models.get_pretrained_model('vit_b_32', 'none')
+    with pytest.raises(RuntimeError):
+        _ = pretrained_models.ViTLayers(network, 'block18')
+
+
+def test_vit_clip_layers_invalid_blocks():
+    network = pretrained_models.get_pretrained_model('clip_ViT-B/32', 'none')
+    with pytest.raises(RuntimeError):
+        _ = pretrained_models.ViTClipLayers(network.visual, 'block18')
+
+
+def test_regnet_layers_invalid_layer():
+    network = pretrained_models.get_pretrained_model('regnet_x_16gf', 'none')
+    with pytest.raises(RuntimeError):
+        _ = pretrained_models._regnet_features(network, 'invalid_layer')
+
+
+def test_vgg_layers_invalid_layer():
+    network = pretrained_models.get_pretrained_model('vgg11', 'none')
+    with pytest.raises(RuntimeError):
+        _ = pretrained_models._vgg_features(network, 'invalid_layer')
+
+
+def test_vgg_layers_classifier_layer():
+    network = pretrained_models.get_pretrained_model('vgg11', 'none')
+    features = pretrained_models._vgg_features(network, 'classifier0')
+    assert isinstance(list(features.children())[-1], torch.nn.Linear)
+
+
+def test_model_features_invalid_network():
+    with pytest.raises(RuntimeError):
+        _ = pretrained_models.model_features(None, 'invalid_architecture', 'fc')

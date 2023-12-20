@@ -96,3 +96,8 @@ def test_generic_features_size_fc():
     img_size = 128
     output_size = model_utils.generic_features_size(model, img_size)
     assert output_size == torch.Size([1000])
+
+
+def test_register_model_hooks_invalid_layers():
+    with pytest.raises(RuntimeError):
+        _ = model_utils.register_model_hooks(None, 'resnet50', ['invalid_layer'])
