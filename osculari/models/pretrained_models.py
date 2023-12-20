@@ -233,6 +233,37 @@ class ViTClipLayers(nn.Module):
         return x
 
 
+class AuxiliaryLayers(nn.Module):
+    def __init__(self, parent_model: nn.Module) -> None:
+        """
+        Initialize the AuxiliaryLayers module (e.g., GoogLeNet, Inception).
+
+        Parameters:
+            parent_model (nn.Module): The parent model.
+        """
+        super(AuxiliaryLayers, self).__init__()
+        self.parent_model = parent_model
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass through the model up to the specified layer and returning only the output.
+
+        Parameters:
+            x (torch.Tensor): The input tensor.
+
+        Returns:
+            torch.Tensor: The output tensor after processing up to the specified layer.
+        """
+        # Reshape and permute the input tensor
+        x = self.parent_model(x)
+        if isinstance(x, (torch_models.GoogLeNetOutputs, torch_models.InceptionOutputs)):
+            x = getattr(x, 'logits')
+        elif isinstance(x, dict) and 'out' in x:
+            # segmentation models
+            x = x['out']
+        return x
+
+
 def _vit_features(model: nn.Module, layer: str) -> ViTLayers:
     """Creating a feature extractor from ViT network."""
     if layer == 'conv_proj':
@@ -277,7 +308,7 @@ def _mobilenet_features(model: nn.Module, layer: str, architecture: str) -> nn.M
     """Creating a feature extractor from MobileNet network."""
     if architecture in ['lraspp_mobilenet_v3_large', 'deeplabv3_mobilenet_v3_large']:
         layer = int(layer.replace('feature', '')) + 1
-        return nn.Sequential(*list(model.children())[:layer])
+        return nn.Sequential(*list(model.parent_model.children())[:layer])
     return _sequential_features(model, layer, 'mobilenet')
 
 
@@ -299,13 +330,13 @@ def _efficientnet_features(model: nn.Module, layer: str) -> nn.Module:
 def _googlenet_features(model: nn.Module, layer: str) -> nn.Module:
     """Creating a feature extractor from GoogLeNet network."""
     l_ind = pretrained_layers.googlenet_cutoff_slice(layer)
-    return nn.Sequential(*list(model.children())[:l_ind])
+    return nn.Sequential(*list(model.parent_model.children())[:l_ind])
 
 
 def _inception_features(model: nn.Module, layer: str) -> nn.Module:
     """Creating a feature extractor from Inception network."""
     l_ind = pretrained_layers.inception_cutoff_slice(layer)
-    return nn.Sequential(*list(model.children())[:l_ind])
+    return nn.Sequential(*list(model.parent_model.children())[:l_ind])
 
 
 def _mnasnet_features(model: nn.Module, layer: str) -> nn.Module:
@@ -332,7 +363,7 @@ def _clip_features(model: nn.Module, layer: str, architecture: str) -> nn.Module
         features = model
     else:
         if clip_arch in ['RN50', 'RN101', 'RN50x4', 'RN50x16', 'RN50x64']:
-            features = _resnet_features(model, layer, is_clip=True)
+            features = _resnet_features(model, layer, architecture)
         elif layer == 'conv_proj':
             features = model.conv1
         else:
@@ -369,9 +400,13 @@ def _regnet_features(model: nn.Module, layer: str) -> nn.Module:
     return features
 
 
-def _resnet_features(model: nn.Module, layer: str, is_clip: Optional[bool] = False) -> nn.Module:
+def _resnet_features(model: nn.Module, layer: str, architecture) -> nn.Module:
     """Creating a feature extractor from ResNet network."""
+    is_clip = 'clip' in architecture
     l_ind = pretrained_layers.resnet_cutoff_slice(layer, is_clip=is_clip)
+    if architecture in ['deeplabv3_resnet101', 'deeplabv3_resnet50',
+                        'fcn_resnet101', 'fcn_resnet50']:
+        return nn.Sequential(*list(model.parent_model.children())[:l_ind])
     return nn.Sequential(*list(model.children())[:l_ind])
 
 
@@ -402,7 +437,7 @@ def model_features(model: nn.Module, architecture: str, layer: str) -> nn.Module
         features = _clip_features(model, layer, architecture)
     else:
         if model_utils.is_resnet_backbone(architecture):
-            features = _resnet_features(model, layer)
+            features = _resnet_features(model, layer, architecture)
         elif 'regnet' in architecture:
             features = _regnet_features(model, layer)
         elif 'vgg' in architecture:
@@ -502,8 +537,7 @@ def get_pretrained_model(network_name: str, weights: str) -> nn.Module:
         # Load torchvision networks
         weights = _torchvision_weights(network_name, weights)
         net_fun = torch_models.segmentation if network_name in _TORCHVISION_SEGMENTATION else torch_models
-        kwargs = {'aux_logits': False} if network_name in ['googlenet', 'inception_v3'] else {}
-        model = net_fun.__dict__[network_name](weights=weights, **kwargs)
+        model = net_fun.__dict__[network_name](weights=weights)
 
     return model
 
@@ -522,7 +556,9 @@ def get_image_encoder(network_name: str, model: nn.Module) -> nn.Module:
     if 'clip' in network_name:
         return model.visual
     elif network_name in _TORCHVISION_SEGMENTATION:
-        return model.backbone
+        return AuxiliaryLayers(model.backbone)
+    elif network_name in ['googlenet', 'inception_v3']:
+        return AuxiliaryLayers(model)
     return model
 
 
