@@ -3,11 +3,9 @@
 
 cff-version: 1.2.0
 title: >-
-  Osculari: a Python package to explore and interpret deep
-  neural networks
+  Osculari: a Python package to explore artificial neural networks with psychophysical experiments
 message: >-
-  If you use this software, please cite it using the
-  metadata from this file.
+  If you use this software, please cite it using the metadata from this file.
 type: software
 authors:
   - given-names: Arash
@@ -18,5 +16,5 @@ identifiers:
     value: 10.5281/zenodo.10214006
 repository-code: 'https://github.com/ArashAkbarinia/osculari'
 license: MIT
-version: v0.0.2
-date-released: '2023-11-28'
+version: v0.0.4
+date-released: '2023-12-21'
