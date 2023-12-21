@@ -15,7 +15,7 @@ Osculari
 .. image:: https://img.shields.io/pypi/pyversions/osculari.svg
    :target: https://pypi.org/project/osculari/
 .. image:: https://static.pepy.tech/badge/osculari
-   :target: https://pypi.org/project/osculari/
+   :target: https://github.com/ArashAkbarinia/osculari
 .. image:: https://codecov.io/gh/ArashAkbarinia/osculari/branch/main/graph/badge.svg
    :target: https://app.codecov.io/gh/ArashAkbarinia/osculari
 .. image:: https://img.shields.io/badge/PyTorch_1.9.1+-ee4c2c?logo=pytorch&logoColor=white
@@ -26,10 +26,11 @@ Osculari
    :target: https://zenodo.org/doi/10.5281/zenodo.10214005
 
 
-**Osculari** (ōsculārī; Latin; to embrace, kiss) is a Python library providing an easy interface
-for different techniques to explore and interpret the internal presentation of deep neural networks.
+**Osculari** (ōsculārī; Latin; to embrace, kiss) is a Python package providing an easy interface
+for different psychophysical techniques to explore and interpret the internal presentation of
+artificial neural networks.
 
-- Supporting for following pretrained models:
+- Supporting the following pretrained models:
     * All classification and segmentation networks
       from `PyTorch's official website <https://pytorch.org/vision/stable/models.html>`_.
     * All OpenAI `CLIP <(https://github.com/openai/CLIP>`_ language-vision models.

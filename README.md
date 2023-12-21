@@ -5,20 +5,20 @@
 [![PyPi Status](https://img.shields.io/pypi/v/osculari.svg)](https://pypi.org/project/osculari/)
 [![Python version](https://img.shields.io/pypi/pyversions/osculari)](https://pypi.org/project/osculari/)
 [![Documentation Status](https://readthedocs.org/projects/osculari/badge/?version=latest)](https://osculari.readthedocs.io/en/latest/?badge=latest)
-[![Documentation Status](https://static.pepy.tech/badge/osculari)](https://pypi.org/project/osculari/)
-[![Documentation Status](https://codecov.io/gh/ArashAkbarinia/osculari/branch/main/graph/badge.svg)](https://app.codecov.io/gh/ArashAkbarinia/osculari)
+[![Number of downloads](https://static.pepy.tech/badge/osculari)](https://github.com/ArashAkbarinia/osculari)
+[![Test Status](https://codecov.io/gh/ArashAkbarinia/osculari/branch/main/graph/badge.svg)](https://app.codecov.io/gh/ArashAkbarinia/osculari)
 [![Pytorch version](https://img.shields.io/badge/PyTorch_1.9.1+-ee4c2c?logo=pytorch&logoColor=white)](https://pytorch.org/get-started/locally/)
 [![Licence](https://img.shields.io/pypi/l/osculari.svg)](LICENSE)
 [![DOI](https://zenodo.org/badge/717052640.svg)](https://zenodo.org/doi/10.5281/zenodo.10214005)
 
-Exploring and interpreting pretrained deep neural networks.
+Exploring artificial neural networks with psychophysical experiments.
 
 ## Overview
 
 The `osculari` package provides an easy interface for different techniques to explore and interpret
 the internal presentation of deep neural networks.
 
-- Supporting for following pretrained models:
+- Supporting the following pretrained models:
     * All classification and segmentation networks
       from [PyTorch's official website](https://pytorch.org/vision/stable/models.html).
     * All OpenAI [CLIP](https://github.com/openai/CLIP) language-vision models.
@@ -78,7 +78,7 @@ achieved by calling the `paradigm_2afc_merge_concatenate` from the `osculari.mod
 
 ``` python
 
-architecture = 'resnet50'        # networks' architecture
+architecture = 'resnet50'        # network's architecture
 weights = 'resnet50'             # the pretrained weights
 img_size = 224                   # network's input size
 layer = 'block0'                 # the readout layer
