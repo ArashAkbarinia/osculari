@@ -125,7 +125,6 @@ def test_odd_one_out_net_loss_function():
 def test_preprocess_transform():
     # Test the preprocess_transform of BackboneNet
     net = readout.BackboneNet(architecture='taskonomy_autoencoding', weights=None)
-    mean, std = net.normalise_mean_std
 
     # Create a dummy input signal (replace this with your actual input)
     input_signal = np.random.uniform(size=(224, 224, 3))

@@ -5,5 +5,6 @@ In the following notebooks, we show different examples of how to use :code:`oscu
 
 .. toctree::
    notebooks/quick_start
+   notebooks/activation_maps
    notebooks/odd_one_out
    :maxdepth: 1
